@@ -1,0 +1,13 @@
+/tools/
+/公网访问说明.txt
+node_modules/
+.env
+.env.*
+*.log
+*.log.*
+/public/downloads/*
+!/public/downloads/.gitkeep
+*.zip
+*.msi
+*.exe
+*.apk
