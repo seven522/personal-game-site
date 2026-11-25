@@ -203,8 +203,13 @@
 .standby-copy small {font:750 clamp(11px,1.55cqw,15px)/1.5 var(--mono);color:#e6fc7a}
 .game-frame {background:#121511}
 .pad-controls {display:contents}
+.pad-controls, .pad-hit, .pad-hit > span {
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
 .pad-hit {touch-action:none;translate:0 var(--key-y,0%);scale:var(--key-scale,1)}
-.pad-hit > span {display:none}
+.pad-hit > span {display:none;pointer-events:none}
 .dock-title {cursor:default}
 [data-mode=slot-2] .rack-title {left:54%;top:38%;width:32%;transform:rotate(3deg)}
 .rack-key:disabled {cursor:default}

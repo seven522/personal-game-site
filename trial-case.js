@@ -9,6 +9,11 @@ export function setupTelevision() {
   const held = new Map();
   let game, frame, ready = false;
 
+  // Consume native long-press menus without interrupting the game's pointer events.
+  for (const type of ['contextmenu', 'selectstart']) {
+    pad.addEventListener(type, event => event.preventDefault());
+  }
+
   function start() {
     releaseAll();
     if (!frame) {
