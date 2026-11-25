@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>卡嗒 · 卡带架</title>
+<script>
+  const url = new URL('./', location.href);
+  url.search = location.search;
+  url.hash = ({ '#library':'#games', '#media':'#trial', '#top':'#games' })[location.hash] || location.hash;
+  url.searchParams.delete('view');
+  location.replace(url);
+</script></head><body><a href="./">进入卡带架</a></body></html>

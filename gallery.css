@@ -1,0 +1,152 @@
+@property --film-progress {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+.gallery {
+  --gutter: 12px;
+  display: grid;
+  grid-template-columns: minmax(150px,.33fr) minmax(0,1.67fr);
+  gap: 22px;
+  align-items: start;
+  padding: 20px 0 33px;
+  border-top: 2px solid var(--ink);
+  scroll-margin-top: 12px;
+}
+.section-no {
+  margin: 0 0 7px;
+  color: #565447;
+  font: 700 .73rem/1.4 var(--mono);
+  letter-spacing: .12em;
+}
+.gallery-rail h2 {font-size: clamp(1.8rem,3vw,3rem)}
+.film-window {
+  min-width: 0; overflow: hidden; container-type: inline-size;
+  touch-action: pan-y pinch-zoom; user-select: none; isolation: isolate;
+}
+.film-track {
+  --film-progress: 0;
+  --lead-share: .591836735;
+  --lead: calc((100% - var(--gutter)) * var(--lead-share));
+  --image-height: calc((100cqw - var(--gutter)) * var(--lead-share) / 2.1);
+  --preview: calc(100% - var(--lead) - var(--gutter));
+  --extra: calc(var(--lead) - var(--preview));
+  --forward: clamp(0, var(--film-progress), 1);
+  --backward: clamp(0, calc(0 - var(--film-progress)), 1);
+  position: relative; display: grid; gap: var(--gutter); width: 100%;
+  /* The centre card hands its extra width to the incoming card as the strip moves. */
+  grid-template-columns:
+    calc(var(--preview) + var(--extra) * var(--backward))
+    calc(var(--lead) - var(--extra) * (var(--forward) + var(--backward)))
+    calc(var(--preview) + var(--extra) * var(--forward))
+    var(--preview);
+  transform: translate3d(calc((0px - var(--preview) - var(--gutter)) * (1 + var(--film-progress))),0,0);
+}
+.film-track.single {--image-height: calc(100cqw / 2.1); grid-template-columns: 100%; transform: none}
+.art-print {position:relative;margin:0;min-width:0;overflow:hidden}
+.print-open {
+  position: relative; display: block; width: 100%; height: var(--image-height);
+  overflow: hidden; cursor: zoom-in; background: #d8d0bb; isolation: isolate;
+  border: 1px solid #6f6b5e; border-radius: 3px;
+  -webkit-tap-highlight-color: transparent;
+}
+.print-open:focus-visible {outline: 3px solid var(--lime); outline-offset: -4px}
+.print-image {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 240ms cubic-bezier(.21,.65,.26,1), filter 140ms ease;
+}
+.inspect-hint {
+  position: absolute; z-index:1; bottom: 12px; right: 12px; pointer-events: none;
+  display: inline-flex; align-items: center; padding: 7px;
+  background: #f4efe4; color: var(--ink); border: 1px solid #423b2f;
+  box-shadow: 2px 2px 0 #252219; font-size: .78rem; font-weight: 750;
+  opacity: 0; transform: translateY(4px); transition: transform .16s, opacity .16s;
+}
+.inspect-hint img {width: 14px; height: 14px}
+@media (hover:hover) {
+  .print-open:hover .print-image {transform: scale(1.027)}
+  .print-open:hover .inspect-hint {opacity: 1; transform: none}
+}
+.print-open:focus-visible .inspect-hint {opacity: 1; transform: none}
+.print-open:active .print-image {transform: scale(.988); filter: brightness(.92)}
+.film-window.dragging .print-open {cursor: grabbing}
+.film-window.dragging .print-image {transform: none; filter: none}
+.film-window.dragging .inspect-hint {opacity: 0}
+.art-print figcaption {
+  margin-top: 8px; color: #514b42; font-weight: 700; font-size: .9rem;
+}
+.film-controls {
+  display: flex; align-items: center; gap: 7px; margin-top: 18px;
+}
+.film-key {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 31px; height: 33px; border: 1px solid transparent; border-radius: 2px;
+  transition: background .14s, translate .13s, box-shadow .13s; touch-action: manipulation;
+}
+.film-key img {width: 15px; height: 15px; pointer-events: none}
+.film-key:hover,.film-key:focus-visible {background: #e5decf; border-color: #b3a795}
+.film-key:active {translate: 0 2px; box-shadow: inset 0 2px 3px #716b5244; background: var(--lime)}
+.film-key[aria-pressed=true] {background: var(--lime)}
+#viewer-count,.film-selectors {font: 650 clamp(11px,.9cqw,15px)/1.2 var(--mono); white-space: nowrap; font-variant-numeric: tabular-nums}
+.film-count {margin: 15px 0 0; color: #666255; font: .95rem/1.4 var(--mono); font-variant-numeric: tabular-nums}
+.film-count strong {font-size: 1.35rem; color: var(--ink)}
+.film-selectors {grid-column: 1/-1; display: flex; justify-content: center; flex-wrap: wrap; gap: 5px}
+.film-selectors button {min-width: 30px; padding: 5px 2px; border-bottom: 2px solid #beb5a4}
+.film-selectors [aria-current=true] {border-color: var(--orange)}
+.viewer {
+  width: fit-content; max-width: min(94vw,1240px); padding: 0;
+  background: var(--paper) url('hardware/print/paper.webp') repeat;
+  border: 1px solid #262119; border-radius: 3px;
+  box-shadow: 0 20px 80px #17120866;
+}
+.viewer[open] {animation: none}
+.viewer::backdrop {background: #1c1915d9}
+.viewer .viewer-head,.viewer .viewer-foot {padding: 12px clamp(14px,1.5vw,25px)}
+.viewer .viewer-head {justify-content: flex-start; border-bottom: 1px solid #766e60}
+.viewer-head h2 {line-height: 1.25}
+.viewer .viewer-head h2 {font-size: clamp(20px,2.05vw,32px); font-weight: 900; letter-spacing: -.035em}
+.viewer-paging {margin-left: auto; display: flex; align-items: center; gap: .35em}
+.viewer-close {margin-left: auto}
+.viewer-paging:not([hidden]) + .viewer-close {margin-left: .25em; border-left: 1px solid #bcb3a4; border-radius: 0}
+.light-table {display: grid; place-items: center; background: #29261e}
+.viewer .inspect {margin: 0; padding: 0; max-width: 100%; touch-action: manipulation}
+.viewer .inspect:focus-visible {outline: 2px solid var(--lime); outline-offset: -3px}
+.viewer .inspect.magnifying {touch-action: none}
+.viewer .inspect > img {width: auto; height: auto; max-width: min(92vw,1200px); max-height: 67dvh; user-select: none; pointer-events: none}
+.viewer .lens {
+  top: 0; left: 0; width: min(165px,32vw,30dvh); max-width: 100%; max-height: 100%;
+  border: 0; border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #242216, inset 0 0 0 5px #d9ee5f, 0 4px 14px #13100e85;
+}
+.viewer .viewer-foot {gap: 12px 22px; color: var(--ink)}
+.viewer-copy p {margin: 0; font-size: .93rem; font-weight: 650}
+.viewer-copy small {font-size: .8rem; color: #61594b}
+.lens-tools,#lens-power {display: inline-flex; align-items: center; gap: 9px}
+.lens-tools {flex-wrap: wrap}
+.lens-tools .action {border-radius: 2px; font-size: .85rem}
+#power {width: clamp(62px,7vw,110px); accent-color: #575e21; cursor: pointer}
+#lens-power:has(input:disabled) {opacity: .48}
+#power-readout {min-width: 3.5ch; font: 700 .85rem var(--mono)}
+@media (max-width:760px) {
+  .gallery {
+    grid-template-columns: minmax(0,1fr); gap: 14px; padding: 16px 0 22px;
+  }
+  .gallery-rail {display: flex; align-items: center; justify-content: space-between; gap: 12px}
+  .gallery-navigation {display: grid; justify-items: end; gap: 4px}
+  .film-controls,.film-count {margin: 0}
+  .film-count,.film-count strong {font-size: .8rem}
+  .film-track {--lead: 88%; --preview: var(--lead); --image-height: calc(88cqw / 2.1)}
+  .film-track:not(.single) .art-print:not(:nth-child(2)) figcaption {visibility:hidden}
+  .film-key {min-width: 35px; height: 42px}
+  .art-print figcaption {font-size: 15px}
+  .viewer {max-width: 96vw; padding: 0}
+  .viewer .inspect > img {max-width: 94vw; max-height: 60dvh}
+  .viewer .viewer-head,.viewer .viewer-foot {padding: 9px 12px}
+  #zoom {min-height: 40px}
+}
+@media (prefers-reduced-motion: reduce) {
+  .print-open:hover .print-image,.print-open:active .print-image {transform: none}
+}
+@media (hover:none) and (pointer:coarse) {
+  .inspect-hint {opacity: 1; transform: none; font-size: 0; gap: 0; padding: 6px; bottom: 8px; right: 8px}
+}
