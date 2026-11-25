@@ -1,6 +1,6 @@
-import { games } from './catalog.js?v=20261124.5';
+import { games, applyTheme } from './catalog.js?v=20261125.3';
 import { setupViewer } from './viewer.js?v=20261124.4';
-import { setupTelevision } from './trial-case.js?v=20261125.2';
+import { setupTelevision } from './trial-case.js?v=20261125.3';
 
 const $ = id => document.getElementById(id);
 const shelf = document.querySelector('[data-catalog]');
@@ -29,6 +29,8 @@ function select(game) {
   if (game === selected) return;
   const animate = Boolean(selected) && !reducedMotion.matches;
   selected = game;
+  applyTheme(game);
+  $('notes-link').href = 'dev-notes.html?game=' + encodeURIComponent(game.id);
   shelf.dataset.game = game.id;
   document.title = game.title + ' · ' + window.SITE.studio;
   $('game-name').textContent = game.title;
@@ -53,7 +55,9 @@ function select(game) {
   television.select(game);
   shelf.dispatchEvent(new Event('cartridgechange'));
   if (animate) {
-    shelf.querySelector('.cart-space').animate([{opacity:.45}, {opacity:1}], {duration:220, easing:'ease-out'});
+    const cart = shelf.querySelector('.cart-space');
+    cart.getAnimations().forEach(animation => animation.cancel());
+    cart.animate([{opacity:.5,translate:'0 -9px'}, {opacity:1,translate:'0 2px',offset:.72}, {translate:'0 0'}], {duration:300, easing:'ease-out'});
   }
 }
 slots.forEach((slot, index) => {
@@ -76,7 +80,7 @@ for (const id of ['windows','android']) {
     const url = platformURL(id);
     if (!url) {
       clearTimeout(statusTimer);
-      $('platform-status').textContent = key.dataset.platform + ' 安装包待发布。';
+      $('platform-status').textContent = selected.platformNote || key.dataset.platform + ' 安装包待发布。';
       statusTimer = setTimeout(clearPlatformStatus, 3200);
       return;
     }
@@ -115,4 +119,4 @@ about.addEventListener('click', event => {
   const box = about.getBoundingClientRect();
   if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) about.close();
 });
-await import('./hardware.js?v=20261124.2');
+await import('./hardware.js?v=20261125.3');

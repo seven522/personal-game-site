@@ -1,4 +1,16 @@
 import { setupViewer } from './viewer.js?v=20261124.4';
+import { games, applyTheme } from './catalog.js?v=20261125.3';
+
+const gameId = new URL(location.href).searchParams.get('game');
+const selected = games.find(game => game.id === gameId);
+if (selected) {
+  applyTheme(selected);
+  for (const link of document.querySelectorAll('.top a')) {
+    const url = new URL(link.href);
+    url.searchParams.set('game', selected.id);
+    link.href = url.href;
+  }
+}
 
 const viewer = setupViewer(matchMedia('(prefers-reduced-motion: reduce)'));
 const link = document.getElementById('open-art');

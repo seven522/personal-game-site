@@ -22,7 +22,7 @@ export function makeKeySound(toggle) {
       }
     } catch { /* Visual and physical feedback also work with audio unavailable. */ }
   }
-  function play(down, voice = 0) {
+  function play(down, voice = 0, arcade = false) {
     if (!enabled || !context || context.state === 'closed') return;
     const t = context.currentTime + .002;
     const pitch = (1 + voice * .027) * (.985 + Math.random() * .03);
@@ -44,15 +44,20 @@ export function makeKeySound(toggle) {
     }
     const burst = context.createBufferSource(), band = context.createBiquadFilter();
     burst.buffer = noise; band.type = 'bandpass'; band.Q.value = down ? .9 : 1.3;
-    band.frequency.value = (down ? 2060 : 3150) * pitch;
+    band.frequency.value = (down ? 2060 : 3150) * pitch * (arcade ? .82 : 1);
     burst.connect(band);
     const length = down ? .024 : .014;
     const gain = envelope(band, t, down ? .19 : .1, length);
     burst.onended = () => { burst.disconnect(); band.disconnect(); gain.disconnect(); };
     burst.start(t); burst.stop(t + length);
     if (down) {
-      resonator(428, 155, .145, .060);
-      resonator(1140, 760, .049, .021, .002);
+      if (arcade) {
+        resonator(305, 115, .15, .047);
+        resonator(1460, 900, .05, .014, .003);
+      } else {
+        resonator(428, 155, .145, .060);
+        resonator(1140, 760, .049, .021, .002);
+      }
     } else {
       resonator(825, 535, .066, .030);
       resonator(1680, 1270, .031, .014);

@@ -1,0 +1,2414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>铁拳破阵 2.1 · IRON IMPACT</title>
+  <!-- Source: seven522/iron-impact @ 70600ad75081c9e2a6a24bec36b8f4856c3c40ba. station=1 embeds the game in the cartridge cabinet. -->
+  <script>
+    if (new URLSearchParams(location.search).get('station') === '1') {
+      document.documentElement.classList.add('in-station');
+      for (const type of ['selectstart', 'contextmenu', 'dragstart']) {
+        document.addEventListener(type, e => e.preventDefault(), true);
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --background: #090d16;
+      --card: #111827;
+      --card-border: #1f2937;
+      --border: #334155;
+      --foreground: #f8fafc;
+      --muted-foreground: #94a3b8;
+      --primary: #fb923c;
+    }
+    html.light {
+      --background: #f8fafc;
+      --card: #ffffff;
+      --card-border: #e2e8f0;
+      --border: #cbd5e1;
+      --foreground: #0f172a;
+      --muted-foreground: #475569;
+      --primary: #ea580c;
+    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--background);
+      color: var(--foreground);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .shell { width: 100%; max-width: 980px; display: flex; flex-direction: column; gap: 10px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+    .row-left, .row-right { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .top-bar { padding-bottom: 8px; border-bottom: 1px solid var(--card-border); }
+    .title { font-weight: 800; font-size: 14px; letter-spacing: 0.03em; }
+    .badge { padding: 2px 8px; border-radius: 5px; background: var(--card); border: 1px solid var(--card-border); font-family: ui-monospace, monospace; color: var(--muted-foreground); }
+    .mono { font-family: ui-monospace, monospace; color: var(--muted-foreground); }
+    .btn {
+      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--card); color: var(--foreground); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: border-color 120ms ease, transform 80ms ease;
+    }
+    .btn:hover { border-color: var(--primary); }
+    .btn:active { transform: scale(0.97); }
+    .stage {
+      position: relative; width: 100%; aspect-ratio: 920 / 350; min-height: 320px; max-height: 440px;
+      border-radius: 10px; overflow: hidden; border: 1px solid var(--card-border);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+    }
+    canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+    canvas:focus { outline: none; }
+    .overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; cursor: pointer; transition: opacity 200ms ease;
+      background: rgba(10, 12, 18, 0.56); backdrop-filter: blur(2px);
+    }
+    .overlay-cta {
+      padding: 10px 18px; border-radius: 8px; border: 1px solid var(--primary);
+      background: var(--card); color: var(--foreground); font-weight: 700; font-size: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    }
+    .overlay-sub {
+      font-size: 12px; padding: 6px 12px; border-radius: 6px; background: var(--card);
+      color: var(--muted-foreground); border: 1px solid var(--card-border); text-align: center; line-height: 1.6;
+    }
+    .hidden { display: none !important; }
+    .focus-hint {
+      position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: 5px; font-size: 12px;
+      background: var(--card); border: 1px solid var(--border); color: var(--muted-foreground); pointer-events: none;
+    }
+    .kbd {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 1.3rem; height: 1.25rem;
+      padding: 0 0.3rem; font-size: 11px; font-weight: 700; border-radius: 4px;
+      border: 1px solid var(--border); background: var(--card); color: var(--foreground); line-height: 1; margin: 0 1px;
+    }
+    .controls-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted-foreground); }
+    .controls-legend strong { color: var(--foreground); }
+    .lab-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--card-border); font-size: 12px; }
+    .lab-label { color: var(--muted-foreground); font-weight: 600; }
+    .toggle-pill {
+      display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px;
+      font-size: 11.5px; border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground);
+      cursor: pointer; transition: all 120ms ease;
+    }
+    .toggle-pill[data-on="true"] { border-color: var(--primary); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--primary); }
+    .toggle-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted-foreground); opacity: 0.45; }
+    .toggle-pill[data-on="true"] .toggle-dot { background: var(--primary); opacity: 1; }
+    .build-text { margin-left: auto; color: var(--muted-foreground); font-family: ui-monospace, monospace; }
+    .in-station, .in-station body {height:100%;min-height:0;overflow:hidden}
+    .in-station * {-webkit-touch-callout:none}
+    .in-station body {padding:0;background:#090d16}
+    .in-station .shell {width:min(100vw,262.85vh);max-width:none;display:block}
+    .in-station .shell > :not(.stage), .in-station #focus-hint {display:none}
+    .in-station .stage {min-height:0;max-height:none;border:0;border-radius:0;box-shadow:none}
+    .in-station canvas {touch-action:none}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="row top-bar">
+      <div class="row-left">
+        <span class="title">铁拳破阵 2.1 · IRON IMPACT</span>
+        <span id="hud-wave" class="badge">WAVE 1 · 霓虹雨巷</span>
+        <span id="hud-score" class="mono">SCORE 0</span>
+        <span id="hud-best" class="mono">BEST 0</span>
+      </div>
+      <div class="row-right">
+        <button id="btn-boss" class="btn">直挑 BOSS</button>
+        <button id="btn-mode" class="btn">木桩训练</button>
+        <button id="btn-theme" class="btn">浅/深主题</button>
+        <button id="btn-reset" class="btn">重开</button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <canvas id="game" tabindex="0"></canvas>
+      <div id="start-overlay" class="overlay">
+        <div class="overlay-cta">点击画面开始战斗 · 铁拳破阵 2.1</div>
+        <div class="overlay-sub">
+          <span class="kbd">A</span><span class="kbd">D</span> 移动 · <span class="kbd">W</span> 跳 · <span class="kbd">J</span> 轻连招 · <span class="kbd">K</span> 挑飞/长按破防 · <span class="kbd">L</span> 闪避 · <span class="kbd">I</span> 弹反 · <span class="kbd">U</span> 必杀奥义
+        </div>
+      </div>
+      <div id="focus-hint" class="focus-hint hidden">点击画面响应键盘</div>
+    </div>
+
+    <div class="row">
+      <div class="controls-legend">
+        <span><span class="kbd">A</span><span class="kbd">D</span> 移动</span>
+        <span><span class="kbd">W</span> 跳</span>
+        <span><span class="kbd">J</span> 3连/飞膝</span>
+        <span><span class="kbd">K</span> 挑飞/下砸/<strong>长按破盾</strong></span>
+        <span><span class="kbd">L</span> 闪避</span>
+        <span><span class="kbd">I</span> <strong>弹反</strong></span>
+        <span><span class="kbd">U</span> <strong>必杀</strong></span>
+      </div>
+      <div class="row-right">
+        <button id="act-j" class="btn">轻 J</button>
+        <button id="act-k" class="btn">重/蓄 K</button>
+        <button id="act-i" class="btn">弹反 I</button>
+        <button id="act-u" class="btn">必杀 U</button>
+      </div>
+    </div>
+
+    <div class="lab-bar">
+      <span class="lab-label">打击感开关:</span>
+      <button class="toggle-pill" data-feel="hitstop" data-on="true"><span class="toggle-dot"></span>顿帧</button>
+      <button class="toggle-pill" data-feel="shake" data-on="true"><span class="toggle-dot"></span>震屏缩放</button>
+      <button class="toggle-pill" data-feel="squash" data-on="true"><span class="toggle-dot"></span>形变</button>
+      <button class="toggle-pill" data-feel="vfx" data-on="true"><span class="toggle-dot"></span>特效</button>
+      <button class="toggle-pill" data-feel="sfx" data-on="true"><span class="toggle-dot"></span>音效</button>
+      <span id="build-summary" class="build-text">打爆油桶/过关选强化词条</span>
+    </div>
+  </div>
+
+<script>
+  (() => {
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const startOverlay = document.getElementById('start-overlay');
+    const focusHint = document.getElementById('focus-hint');
+    const hudWave = document.getElementById('hud-wave');
+    const hudScore = document.getElementById('hud-score');
+    const hudBest = document.getElementById('hud-best');
+    const buildSummary = document.getElementById('build-summary');
+    const btnMode = document.getElementById('btn-mode');
+    const btnBoss = document.getElementById('btn-boss');
+    const btnReset = document.getElementById('btn-reset');
+
+    const W = 920;
+    const H = 350;
+    const GROUND_Y = 290;
+    const WALL_L = 34;
+    const WALL_R = W - 34;
+    const GRAVITY = 1580;
+
+    const feel = { hitstop: true, shake: true, squash: true, vfx: true, sfx: true };
+
+    // ==================== Theme & Stage Biomes ====================
+    let isLightTheme = false;
+    function updateThemeFlag() {
+      isLightTheme = document.documentElement.classList.contains('light');
+    }
+    updateThemeFlag();
+    window.addEventListener('themechange', updateThemeFlag);
+
+    function getBiome(w) {
+      if (mode === 'dummy') return 2;
+      if (w % 3 === 0) return 1; // Boss Steel Cage
+      return (Math.floor((w - 1) / 3) + (w % 3 === 2 ? 1 : 0)) % 2 === 0 ? 0 : 2;
+    }
+
+    const BIOME_NAMES = ['霓虹雨巷', '烈焰铁笼', '残阳古道场'];
+
+    function getPalette(biomeIdx) {
+      const l = isLightTheme;
+      const base = {
+        playerBody: l ? '#0f172a' : '#f8fafc',
+        playerAccent: '#fb923c',
+        playerBand: '#ef4444',
+        enemyBrawler: l ? '#0f766e' : '#2dd4bf',
+        enemyShield: l ? '#1d4ed8' : '#60a5fa',
+        enemyHeavy: l ? '#991b1b' : '#f87171',
+        enemyStriker: l ? '#7e22ce' : '#c084fc',
+        enemyAcrobat: l ? '#047857' : '#34d399',
+        enemyBoss: l ? '#7f1d1d' : '#dc2626',
+        enemyDummy: l ? '#b45309' : '#fbbf24',
+        shieldFill: 'rgba(96,165,250,0.34)',
+        shieldStroke: l ? '#2563eb' : '#93c5fd',
+        hudText: l ? '#0f172a' : '#f8fafc',
+        hudSub: l ? '#475569' : '#94a3b8',
+        hpBg: l ? 'rgba(15,23,42,0.18)' : 'rgba(248,250,252,0.16)',
+        shadow: l ? 'rgba(15,23,42,0.22)' : 'rgba(0,0,0,0.48)',
+        dust: l ? 'rgba(100,116,139,0.52)' : 'rgba(203,213,225,0.42)',
+        speedLine: l ? 'rgba(15,23,42,0.18)' : 'rgba(255,255,255,0.2)',
+        wallGlow: '#fb923c',
+      };
+      if (biomeIdx === 0) { // Neon Rain Alley
+        return Object.assign(base, l ? {
+          skyTop: '#e2e8f0', skyBot: '#cbd5e1', floorTop: '#94a3b8', floorBot: '#64748b',
+          floorLine: '#475569', pillar: 'rgba(51,65,85,0.12)', accentGlow: '#0284c7',
+        } : {
+          skyTop: '#070b18', skyBot: '#131d38', floorTop: '#1e293b', floorBot: '#090e1a',
+          floorLine: '#38bdf8', pillar: 'rgba(56,189,248,0.07)', accentGlow: '#38bdf8',
+        });
+      }
+      if (biomeIdx === 1) { // Molten Steel Cage (Boss)
+        return Object.assign(base, l ? {
+          skyTop: '#fee2e2', skyBot: '#fecaca', floorTop: '#d6d3d1', floorBot: '#a8a29e',
+          floorLine: '#dc2626', pillar: 'rgba(185,28,28,0.1)', accentGlow: '#dc2626',
+        } : {
+          skyTop: '#18090c', skyBot: '#2d1115', floorTop: '#292524', floorBot: '#141110',
+          floorLine: '#ef4444', pillar: 'rgba(239,68,68,0.08)', accentGlow: '#f97316',
+        });
+      }
+      // Sunset Dojo
+      return Object.assign(base, l ? {
+        skyTop: '#ffedd5', skyBot: '#fed7aa', floorTop: '#d6c5b3', floorBot: '#b59d84',
+        floorLine: '#9a3412', pillar: 'rgba(154,52,18,0.1)', accentGlow: '#ea580c',
+      } : {
+        skyTop: '#1e1024', skyBot: '#451a2b', floorTop: '#2c1e1a', floorBot: '#170f0d',
+        floorLine: '#fb923c', pillar: 'rgba(251,146,60,0.08)', accentGlow: '#fb923c',
+      });
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // ==================== Web Audio Procedural SFX ====================
+    let audioCtx = null, noiseBuffer = null;
+    function initAudio() {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        audioCtx = new AC();
+        const len = audioCtx.sampleRate * 0.5;
+        noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+        const d = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    const sfx = {
+      whoosh(pitch = 1) {
+        if (!feel.sfx || !audioCtx || !noiseBuffer) return;
+        const t = audioCtx.currentTime;
+        const src = audioCtx.createBufferSource(); src.buffer = noiseBuffer;
+        const f = audioCtx.createBiquadFilter(); f.type = 'bandpass';
+        f.frequency.setValueAtTime(540 * pitch, t);
+        f.frequency.exponentialRampToValueAtTime(160 * pitch, t + 0.09);
+        f.Q.value = 1.5;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(0.13, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        src.connect(f).connect(g).connect(audioCtx.destination);
+        src.start(t); src.stop(t + 0.11);
+      },
+      hit(power = 1) {
+        if (!feel.sfx || !audioCtx || !noiseBuffer) return;
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        osc.type = power >= 2 ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(170 + power * 24, t);
+        osc.frequency.exponentialRampToValueAtTime(32, t + 0.08 + power * 0.035);
+        const og = audioCtx.createGain();
+        og.gain.setValueAtTime(Math.min(0.42, 0.2 + power * 0.08), t);
+        og.gain.exponentialRampToValueAtTime(0.001, t + 0.11 + power * 0.04);
+        osc.connect(og).connect(audioCtx.destination);
+        osc.start(t); osc.stop(t + 0.18 + power * 0.04);
+
+        const src = audioCtx.createBufferSource(); src.buffer = noiseBuffer;
+        const flt = audioCtx.createBiquadFilter(); flt.type = 'bandpass';
+        flt.frequency.setValueAtTime(1450 - power * 180, t); flt.Q.value = 0.8;
+        const ng = audioCtx.createGain();
+        ng.gain.setValueAtTime(Math.min(0.32, 0.13 + power * 0.06), t);
+        ng.gain.exponentialRampToValueAtTime(0.001, t + 0.055 + power * 0.02);
+        src.connect(flt).connect(ng).connect(audioCtx.destination);
+        src.start(t); src.stop(t + 0.11);
+      },
+      block() {
+        if (!feel.sfx || !audioCtx) return;
+        const t = audioCtx.currentTime;
+        [900, 1450].forEach((fr, idx) => {
+          const o = audioCtx.createOscillator(); o.type = idx === 0 ? 'triangle' : 'sine';
+          o.frequency.setValueAtTime(fr, t); o.frequency.exponentialRampToValueAtTime(fr * 0.84, t + 0.12);
+          const g = audioCtx.createGain(); g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+          o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.15);
+        });
+      },
+      parry() {
+        if (!feel.sfx || !audioCtx) return;
+        const t = audioCtx.currentTime;
+        [1180, 1770, 2650].forEach((fr, i) => {
+          const o = audioCtx.createOscillator(); o.type = 'sine';
+          o.frequency.setValueAtTime(fr, t + i * 0.012);
+          o.frequency.exponentialRampToValueAtTime(fr * 1.06, t + 0.24);
+          const g = audioCtx.createGain(); g.gain.setValueAtTime(0.16, t + i * 0.012);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+          o.connect(g).connect(audioCtx.destination); o.start(t + i * 0.012); o.stop(t + 0.3);
+        });
+      },
+      guardBreak() {
+        if (!feel.sfx || !audioCtx || !noiseBuffer) return;
+        this.hit(3);
+        const t = audioCtx.currentTime;
+        [1850, 2500, 3200].forEach((f, i) => {
+          const o = audioCtx.createOscillator(); o.type = 'sawtooth';
+          o.frequency.setValueAtTime(f, t + i * 0.02); o.frequency.exponentialRampToValueAtTime(f * 0.42, t + 0.22);
+          const g = audioCtx.createGain(); g.gain.setValueAtTime(0.08, t + i * 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+          o.connect(g).connect(audioCtx.destination); o.start(t + i * 0.02); o.stop(t + 0.26);
+        });
+      },
+      explosion() {
+        if (!feel.sfx || !audioCtx || !noiseBuffer) return;
+        const t = audioCtx.currentTime;
+        const o = audioCtx.createOscillator(); o.type = 'sine';
+        o.frequency.setValueAtTime(115, t); o.frequency.exponentialRampToValueAtTime(22, t + 0.36);
+        const g = audioCtx.createGain(); g.gain.setValueAtTime(0.48, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+        o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.4);
+
+        const src = audioCtx.createBufferSource(); src.buffer = noiseBuffer;
+        const flt = audioCtx.createBiquadFilter(); flt.type = 'lowpass';
+        flt.frequency.setValueAtTime(950, t); flt.frequency.exponentialRampToValueAtTime(120, t + 0.35);
+        const ng = audioCtx.createGain(); ng.gain.setValueAtTime(0.36, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
+        src.connect(flt).connect(ng).connect(audioCtx.destination); src.start(t); src.stop(t + 0.38);
+      },
+      superStart() {
+        if (!feel.sfx || !audioCtx) return;
+        const t = audioCtx.currentTime;
+        [330, 495, 660, 990].forEach((f, i) => {
+          const o = audioCtx.createOscillator(); o.type = 'sawtooth';
+          o.frequency.setValueAtTime(f, t + i * 0.025);
+          o.frequency.exponentialRampToValueAtTime(f * 1.4, t + 0.28);
+          const g = audioCtx.createGain(); g.gain.setValueAtTime(0.09, t + i * 0.025);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+          o.connect(g).connect(audioCtx.destination); o.start(t + i * 0.025); o.stop(t + 0.34);
+        });
+      },
+      pickup() {
+        if (!feel.sfx || !audioCtx) return;
+        const t = audioCtx.currentTime;
+        [660, 880, 1175].forEach((f, i) => {
+          const o = audioCtx.createOscillator(); o.type = 'sine';
+          o.frequency.setValueAtTime(f, t + i * 0.045);
+          const g = audioCtx.createGain(); g.gain.setValueAtTime(0.12, t + i * 0.045);
+          g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.045 + 0.14);
+          o.connect(g).connect(audioCtx.destination); o.start(t + i * 0.045); o.stop(t + i * 0.045 + 0.16);
+        });
+      },
+      chargeReady() {
+        if (!feel.sfx || !audioCtx) return;
+        const t = audioCtx.currentTime;
+        const o = audioCtx.createOscillator(); o.type = 'sine';
+        o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(1320, t + 0.09);
+        const g = audioCtx.createGain(); g.gain.setValueAtTime(0.14, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+        o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.17);
+      },
+      lightning() {
+        if (!feel.sfx || !audioCtx || !noiseBuffer) return;
+        const t = audioCtx.currentTime;
+        const src = audioCtx.createBufferSource(); src.buffer = noiseBuffer;
+        const flt = audioCtx.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 1800;
+        const g = audioCtx.createGain(); g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        src.connect(flt).connect(g).connect(audioCtx.destination); src.start(t); src.stop(t + 0.15);
+      },
+    };
+
+    // ==================== Roguelike Upgrades ====================
+    const UPGRADE_POOL = [
+      { id: 'flame',     icon: '🔥', name: '烈焰重拳', desc: '重击/蓄力拳伤害 +35%，命中爆出火焰冲击', color: '#f97316' },
+      { id: 'thunder',   icon: '⚡', name: '雷霆连击', desc: '每累计 4 次连击召唤落雷劈击目标 (+22 伤)', color: '#38bdf8' },
+      { id: 'vamp',      icon: '❤️', name: '嗜血斗魂', desc: '最大生命 +25，每次击杀回复 14 HP 与 25 体力', color: '#ef4444' },
+      { id: 'phantom',   icon: '💨', name: '幻影爆裂', desc: '闪避体力消耗减半，冲刺留下爆裂残影震伤敌人', color: '#a855f7' },
+      { id: 'wallcrush', icon: '💥', name: '撞墙碎骨', desc: '撞墙反弹伤害翻倍 (+24) 并额外获得 18 怒气', color: '#fb923c' },
+      { id: 'fury',      icon: '🌀', name: '暴怒奥义', desc: '怒气积攒速度 +60%，必杀奥义伤害 +35%', color: '#facc15' },
+      { id: 'parryking', icon: '🛡️', name: '钢骨弹反', desc: '弹反窗口放宽，成功弹反震飞敌人并回满体力', color: '#22c55e' },
+      { id: 'breath',    icon: '🌬️', name: '疾风吐纳', desc: '体力上限 +30，体力自然恢复速度 +45%', color: '#14b8a6' },
+    ];
+
+    // ==================== Attack Frame Data ====================
+    const ATTACKS = {
+      jab1: { startup: 0.04, active: 0.065, recovery: 0.13, dmg: 12, posture: 10, hitstop: 0.036, kbX: 115, kbY: -35, shake: 4, reach: 68, height: 54, lunge: 155, color: '#fbbf24', power: 0.9, arcType: 'thrust', exGain: 7, spCost: 6, spRefund: 3 },
+      jab2: { startup: 0.05, active: 0.07, recovery: 0.145, dmg: 18, posture: 14, hitstop: 0.056, kbX: 185, kbY: -65, shake: 7.5, reach: 76, height: 58, lunge: 200, color: '#fb923c', power: 1.35, arcType: 'hook', exGain: 9, spCost: 7, spRefund: 3 },
+      kick3: { startup: 0.075, active: 0.085, recovery: 0.2, dmg: 32, posture: 24, hitstop: 0.11, kbX: 550, kbY: -235, shake: 14, reach: 90, height: 64, lunge: 235, color: '#f97316', power: 2.2, arcType: 'kick', wallBounce: true, zoom: 1.055, exGain: 14, spCost: 11, spRefund: 4 },
+      dashKnee: { startup: 0.03, active: 0.09, recovery: 0.15, dmg: 22, posture: 18, hitstop: 0.075, kbX: 310, kbY: -190, shake: 9, reach: 82, height: 58, lunge: 420, color: '#38bdf8', power: 1.65, arcType: 'thrust', wallBounce: true, exGain: 12, spCost: 12, spRefund: 4 },
+      uppercut: { startup: 0.065, active: 0.09, recovery: 0.185, dmg: 26, posture: 22, hitstop: 0.09, kbX: 115, kbY: -520, shake: 11, reach: 76, height: 86, lunge: 145, color: '#38bdf8', power: 1.85, arcType: 'upper', launcher: true, zoom: 1.04, exGain: 13, spCost: 18, spRefund: 0 },
+      chargePunch: { startup: 0.032, active: 0.105, recovery: 0.21, dmg: 56, posture: 45, hitstop: 0.15, kbX: 690, kbY: -265, shake: 18, reach: 106, height: 68, lunge: 450, color: '#facc15', power: 3.0, arcType: 'mega', guardBreak: true, wallBounce: true, zoom: 1.08, exGain: 22, spCost: 22, spRefund: 0 },
+      airKick: { startup: 0.038, active: 0.08, recovery: 0.11, dmg: 16, posture: 12, hitstop: 0.045, kbX: 145, kbY: -235, shake: 5.5, reach: 74, height: 60, lunge: 120, color: '#fbbf24', power: 1.15, arcType: 'kick', exGain: 8, spCost: 7, spRefund: 3 },
+      airSlam: { startup: 0.045, active: 0.5, recovery: 0.19, dmg: 38, posture: 32, hitstop: 0.11, kbX: 300, kbY: -360, shake: 16, reach: 126, height: 74, lunge: 0, color: '#f97316', power: 2.5, arcType: 'slam', zoom: 1.06, exGain: 16, spCost: 18, spRefund: 0 },
+      superFlurry: { dmg: 14, posture: 12, hitstop: 0.028, kbX: 45, kbY: -45, shake: 7, power: 1.4, color: '#facc15', exGain: 0, spCost: 0, spRefund: 0 },
+      superFinisher: { dmg: 78, posture: 60, hitstop: 0.18, kbX: 780, kbY: -330, shake: 24, power: 3.4, color: '#f97316', guardBreak: true, wallBounce: true, zoom: 1.11, exGain: 0, spCost: 0, spRefund: 0 },
+    };
+
+    // ==================== Game State ====================
+    let started = false;
+    let mode = 'waves'; // 'waves' | 'dummy'
+    let wave = 1;
+    let score = 0;
+    let bestScore = Number(localStorage.getItem("iron_impact_best") || 0);
+    let gameOver = false;
+    let settlement = null;
+    let runStats = { kills: 0, maxCombo: 0, parries: 0, guardBreaks: 0, waveNoHit: true, waveBonus: null };
+    let hitStopTimer = 0;
+    let slowMoTimer = 0, slowMoScale = 1;
+    let camShakeX = 0, camShakeY = 0, camShakeMag = 0;
+    let camZoom = 1, camZoomTarget = 1;
+    let speedLineAlpha = 0;
+    let superCinematicAlpha = 0;
+    let bannerText = '', bannerSub = '', bannerTimer = 0;
+    let waveClearPending = false;
+    let waveClearDelay = 0;
+
+    let comboCount = 0, comboTimer = 0, comboScale = 1;
+    let thunderCounter = 0;
+
+    // Roguelike Upgrade Picker State
+    let activeUpgrades = {}; // id -> count
+    let upgradeChoices = []; // 3 items when choosing
+    let hoveredCard = -1;
+
+    const keys = {};
+    let kHoldTime = 0, kHolding = false, kChargeNotified = false;
+    let inputBuffer = null;
+
+    let particles = [], arcs = [], rings = [], floatTexts = [], afterimages = [], lightnings = [];
+    let enemies = [], projectiles = [], props = [], pickups = [], shockwaves = [];
+    let ambientParticles = Array.from({ length: 38 }, () => ({
+      x: Math.random() * W, y: Math.random() * GROUND_Y,
+      spd: 0.6 + Math.random() * 1.1, size: 1.5 + Math.random() * 2.5, phase: Math.random() * 6.28,
+    }));
+
+    function hasUpgrade(id) { return activeUpgrades[id] || 0; }
+
+    function refreshBuildSummary() {
+      const entries = Object.entries(activeUpgrades);
+      if (entries.length === 0) {
+        buildSummary.textContent = '打爆油桶/过关选强化词条';
+        return;
+      }
+      buildSummary.textContent = entries.map(([id, cnt]) => {
+        const u = UPGRADE_POOL.find(x => x.id === id);
+        return `${u.icon}${u.name}${cnt > 1 ? '×' + cnt : ''}`;
+      }).join(' ');
+    }
+
+    function createPlayer() {
+      return {
+        x: 220, y: GROUND_Y, vx: 0, vy: 0,
+        dir: 1, hp: 100, maxHp: 100, sp: 100, maxSp: 100, ex: 35, maxEx: 100,
+        spRegenDelay: 0, exhaustedTimer: 0,
+        onGround: true,
+        state: 'idle', // idle, run, attack, charge, dash, parry, super, hurt
+        attackKey: null, attackTime: 0, attackHitIds: new Set(),
+        comboStep: 0, comboResetTimer: 0,
+        dashTimer: 0, dashCooldown: 0,
+        parryTimer: 0, parryCooldown: 0,
+        superStep: 0, superTimer: 0,
+        invulnTimer: 0, hurtTimer: 0, flashTimer: 0,
+        scaleX: 1, scaleY: 1,
+        airJumps: 1, airComboCount: 0,
+        bandPoints: Array.from({ length: 5 }, (_, i) => ({ x: 220 - i * 7, y: GROUND_Y - 56 })),
+        animTime: 0,
+      };
+    }
+
+    function consumeStamina(cost, allowExhausted = false) {
+      if (cost <= 0) return true;
+      if (player.exhaustedTimer > 0 && !allowExhausted) {
+        addFloatText(player.x, player.y - 72, '力竭喘息!', '#f87171', 0.85);
+        return false;
+      }
+      if (player.sp < cost && !allowExhausted) {
+        addFloatText(player.x, player.y - 72, '体力不足!', '#fbbf24', 0.85);
+        return false;
+      }
+      player.sp = Math.max(0, player.sp - cost);
+      player.spRegenDelay = 0.46;
+      if (player.sp <= 0 && !allowExhausted) {
+        player.exhaustedTimer = 1.05;
+        addFloatText(player.x, player.y - 76, '体力耗尽!', '#ef4444', 0.95);
+      }
+      return true;
+    }
+
+    function restoreStamina(amount, clearExhaust = false) {
+      player.sp = Math.min(player.maxSp, player.sp + amount);
+      if (clearExhaust) player.exhaustedTimer = 0;
+    }
+
+    let player = createPlayer();
+    let nextId = 1;
+
+    function spawnEnemy(type, x) {
+      const scaleHp = mode === 'waves' ? (1 + (wave - 1) * 0.14) : 1;
+      const defs = {
+        brawler: { hp: 72,  speed: 138, w: 32, h: 62, shield: false, heavy: false, boss: false, dmg: 10, colorKey: 'enemyBrawler', label: '街斗手' },
+        shield:  { hp: 92,  speed: 96,  w: 36, h: 64, shield: true,  heavy: false, boss: false, dmg: 12, colorKey: 'enemyShield',  label: '重盾兵' },
+        striker: { hp: 62,  speed: 145, w: 30, h: 60, shield: false, heavy: false, boss: false, dmg: 11, colorKey: 'enemyStriker', label: '飞镖忍影' },
+        acrobat: { hp: 80,  speed: 185, w: 30, h: 60, shield: false, heavy: false, boss: false, dmg: 11, colorKey: 'enemyAcrobat', label: '疾风武僧' },
+        heavy:   { hp: 145, speed: 84,  w: 44, h: 74, shield: false, heavy: true,  boss: false, dmg: 18, colorKey: 'enemyHeavy',   label: '铁臂暴徒' },
+        boss:    { hp: 460, speed: 106, w: 56, h: 92, shield: false, heavy: true,  boss: true,  dmg: 22, colorKey: 'enemyBoss',    label: '铁狱霸王 · 钢拳泰坦' },
+        dummy:   { hp: 9999,speed: 0,   w: 34, h: 64, shield: false, heavy: false, boss: false, dmg: 0,  colorKey: 'enemyDummy',   label: '练习木桩' },
+      }[type];
+      const maxHp = type === 'dummy' ? 9999 : Math.round(defs.hp * scaleHp);
+      return {
+        id: nextId++, type, x, y: GROUND_Y, vx: 0, vy: 0,
+        dir: x > player.x ? -1 : 1,
+        hp: maxHp, maxHp,
+        posture: defs.boss ? 140 : 0, maxPosture: defs.boss ? 140 : 0,
+        speed: defs.speed, w: defs.w, h: defs.h,
+        hasShield: defs.shield, isHeavy: defs.heavy, isBoss: defs.boss,
+        dmg: defs.dmg, colorKey: defs.colorKey, label: defs.label,
+        state: 'idle', stateTimer: 0, subAttack: '', aiCooldown: 0.45 + Math.random() * 0.45,
+        flashTimer: 0, hitJitterTimer: 0, scaleX: 1, scaleY: 1,
+        wallBounceArmed: false, deadAlpha: 1, animTime: Math.random() * 10,
+        turretTimer: 2.2,
+      };
+    }
+
+    function spawnProp(kind, x) {
+      props.push({
+        id: nextId++, kind, // 'barrel' | 'crate'
+        x, y: GROUND_Y, vx: 0, vy: 0,
+        hp: kind === 'barrel' ? 2 : 1,
+        flying: false, flashTimer: 0, scaleX: 1, scaleY: 1,
+      });
+    }
+
+    function spawnPickup(kind, x, y) {
+      pickups.push({
+        id: nextId++, kind, // 'heal' | 'ex'
+        x, y, vx: (Math.random() - 0.5) * 140, vy: -240, life: 12, anim: 0,
+      });
+    }
+
+    function spawnWave(n) {
+      enemies = []; projectiles = []; shockwaves = []; props = [];
+      const bIdx = getBiome(n);
+      hudWave.textContent = `WAVE ${n} · ${BIOME_NAMES[bIdx]}`;
+
+      if (n % 3 === 0) {
+        // BOSS WAVE!
+        showBanner(`BOSS 来袭 · WAVE ${n}`, '铁狱霸王·钢拳泰坦 — 弹反 / 破架势条 / 开 U 必杀！');
+        enemies.push(spawnEnemy('boss', 730));
+        spawnProp('barrel', 460);
+        spawnProp('crate', 140);
+        return;
+      }
+
+      showBanner(`WAVE ${n} · ${BIOME_NAMES[bIdx]}`, n === 1 ? '打飞红油桶爆炸 · I 弹反 · U 满气必杀' : '新敌群登场！');
+      if (n === 1) {
+        enemies.push(spawnEnemy('brawler', 600));
+        enemies.push(spawnEnemy('shield', 740));
+        enemies.push(spawnEnemy('striker', 830));
+        spawnProp('barrel', 490);
+        spawnProp('crate', 790);
+      } else if (n === 2) {
+        enemies.push(spawnEnemy('acrobat', 620));
+        enemies.push(spawnEnemy('shield', 730));
+        enemies.push(spawnEnemy('striker', 120));
+        enemies.push(spawnEnemy('heavy', 820));
+        spawnProp('barrel', 420);
+        spawnProp('crate', 670);
+      } else {
+        const count = Math.min(6, 3 + Math.floor(n / 2));
+        const types = ['brawler', 'shield', 'striker', 'acrobat', 'heavy'];
+        for (let i = 0; i < count; i++) {
+          const side = i % 2 === 0 ? WALL_R - 45 - i * 38 : WALL_L + 45 + i * 36;
+          const t = types[(i + n) % types.length];
+          enemies.push(spawnEnemy(t, Math.max(WALL_L + 35, Math.min(WALL_R - 35, side))));
+        }
+        spawnProp('barrel', 360 + Math.random() * 240);
+        spawnProp('crate', 150 + Math.random() * 580);
+      }
+    }
+
+    function spawnDummyMode() {
+      enemies = []; projectiles = []; shockwaves = []; props = []; pickups = [];
+      hudWave.textContent = '木桩训练场';
+      showBanner('自由训练场', '木桩 · 护盾桩 · 飞镖靶（按 I 弹反飞镖）· 爆裂油桶');
+      const d1 = spawnEnemy('dummy', 460); d1.label = '连招木桩';
+      const d2 = spawnEnemy('dummy', 640); d2.hasShield = true; d2.label = '护盾桩(长按K)';
+      const d3 = spawnEnemy('dummy', 820); d3.label = '飞镖靶(按I弹反)'; d3.isTurret = true;
+      enemies.push(d1, d2, d3);
+      spawnProp('barrel', 550);
+      player.ex = player.maxEx;
+    }
+
+    function openUpgradePicker() {
+      // Compute wave settlement bonus
+      const clearBonus = wave * 300;
+      const hpBonus = Math.round((player.hp / player.maxHp) * 240);
+      const noHitBonus = runStats.waveNoHit ? 300 : 0;
+      const comboBonus = Math.min(800, runStats.maxCombo * 30);
+      const totalAdd = clearBonus + hpBonus + noHitBonus + comboBonus;
+      score += totalAdd;
+      if (score > bestScore) { bestScore = score; hudBest.textContent = `BEST ${bestScore}`; try { localStorage.setItem("iron_impact_best", String(bestScore)); } catch {} }
+      hudScore.textContent = `SCORE ${score}`;
+      runStats.waveBonus = { clearBonus, hpBonus, noHitBonus, comboBonus, totalAdd };
+
+      const shuffled = [...UPGRADE_POOL].sort(() => Math.random() - 0.5);
+      upgradeChoices = shuffled.slice(0, 3);
+      hoveredCard = -1;
+    }
+
+    function selectUpgrade(idx) {
+      const up = upgradeChoices[idx];
+      if (!up) return;
+      activeUpgrades[up.id] = (activeUpgrades[up.id] || 0) + 1;
+      if (up.id === 'vamp') {
+        player.maxHp += 25;
+        player.hp = Math.min(player.maxHp, player.hp + 35);
+      } else if (up.id === 'breath') {
+        player.maxSp += 30;
+        player.sp = player.maxSp;
+        player.hp = Math.min(player.maxHp, player.hp + 20);
+      } else {
+        player.hp = Math.min(player.maxHp, player.hp + 20);
+      }
+      restoreStamina(player.maxSp, true);
+      runStats.waveNoHit = true;
+      runStats.waveBonus = null;
+      sfx.pickup();
+      refreshBuildSummary();
+      upgradeChoices = [];
+      wave++;
+      spawnWave(wave);
+    }
+
+    function triggerGameOver() {
+      gameOver = true;
+      kHolding = false; kHoldTime = 0;
+      const waveBonus = wave * 500;
+      const killBonus = runStats.kills * 120;
+      const comboBonus = runStats.maxCombo * 80;
+      const techCount = runStats.parries + runStats.guardBreaks;
+      const techBonus = techCount * 250;
+      const totalScore = score + waveBonus + killBonus + comboBonus + techBonus;
+      const isNewRecord = totalScore > bestScore;
+      if (isNewRecord) { bestScore = totalScore; hudBest.textContent = `BEST ${bestScore}`; try { localStorage.setItem("iron_impact_best", String(bestScore)); } catch {} }
+      const rank = totalScore >= 9500 ? 'SSS' : totalScore >= 7000 ? 'SS' : totalScore >= 4800 ? 'S' : totalScore >= 3200 ? 'A' : totalScore >= 1800 ? 'B' : totalScore >= 900 ? 'C' : 'D';
+      settlement = {
+        combatScore: score, wave, kills: runStats.kills, maxCombo: runStats.maxCombo, techCount,
+        waveBonus, killBonus, comboBonus, techBonus, totalScore, isNewRecord, rank,
+      };
+      hudScore.textContent = `SCORE ${totalScore}`;
+      sfx.explosion();
+    }
+
+    function resetGame(startAtBoss = false) {
+      player = createPlayer();
+      particles = []; arcs = []; rings = []; floatTexts = []; afterimages = []; lightnings = [];
+      projectiles = []; props = []; pickups = []; shockwaves = [];
+      activeUpgrades = {}; upgradeChoices = []; refreshBuildSummary();
+      score = 0; wave = startAtBoss ? 3 : 1; comboCount = 0; comboTimer = 0; thunderCounter = 0;
+      gameOver = false; settlement = null;
+      runStats = { kills: 0, maxCombo: 0, parries: 0, guardBreaks: 0, waveNoHit: true, waveBonus: null };
+      hitStopTimer = 0; slowMoTimer = 0; slowMoScale = 1;
+      camShakeMag = 0; camZoom = 1; camZoomTarget = 1; speedLineAlpha = 0; superCinematicAlpha = 0;
+      waveClearPending = false; waveClearDelay = 0;
+      hudScore.textContent = 'SCORE 0';
+      if (startAtBoss) {
+        mode = 'waves';
+        btnMode.textContent = '木桩训练';
+        player.ex = 100; // Give full EX for instant fun against Boss!
+        spawnWave(3);
+      } else if (mode === 'dummy') {
+        spawnDummyMode();
+      } else {
+        spawnWave(1);
+      }
+    }
+
+    function showBanner(text, sub = '') { bannerText = text; bannerSub = sub; bannerTimer = 1.9; }
+
+    // ==================== VFX Helpers ====================
+    function triggerShake(mag, dx = 0, dy = 0) {
+      if (!feel.shake) return;
+      camShakeMag = Math.max(camShakeMag, mag);
+      camShakeX += dx * mag * 0.45; camShakeY += dy * mag * 0.35;
+    }
+    function triggerHitStop(sec) { if (feel.hitstop) hitStopTimer = Math.max(hitStopTimer, sec); }
+    function triggerZoom(z, lines = 0) {
+      if (!feel.shake) return;
+      camZoomTarget = Math.max(camZoomTarget, z);
+      if (lines > 0) speedLineAlpha = Math.max(speedLineAlpha, lines);
+    }
+    function applySquash(ent, sx, sy) { if (feel.squash) { ent.scaleX = sx; ent.scaleY = sy; } }
+    function addRing(x, y, maxR, color, lw = 4) { if (feel.vfx) rings.push({ x, y, r: 8, maxR, color, lineWidth: lw, life: 0.23, maxLife: 0.23 }); }
+    function addSparks(x, y, count, dx, dy, color, speed = 340, size = 3.5) {
+      if (!feel.vfx) return;
+      const ba = Math.atan2(dy, dx);
+      for (let i = 0; i < count; i++) {
+        const ang = ba + (Math.random() - 0.5) * 1.4;
+        const spd = speed * (0.45 + Math.random() * 0.85);
+        particles.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 40, life: 0.16 + Math.random() * 0.2, maxLife: 0.36, color, size: size * (0.7 + Math.random() * 0.8), gravity: 540, kind: 'spark' });
+      }
+    }
+    function addShards(x, y, count, dx, color) {
+      if (!feel.vfx) return;
+      for (let i = 0; i < count; i++) {
+        particles.push({ x: x + (Math.random() - 0.5) * 18, y: y + (Math.random() - 0.5) * 32, vx: dx * (150 + Math.random() * 340) + (Math.random() - 0.5) * 140, vy: -140 - Math.random() * 250, rot: Math.random() * 6.28, vrot: (Math.random() - 0.5) * 18, life: 0.42 + Math.random() * 0.35, maxLife: 0.77, color, size: 5 + Math.random() * 6, gravity: 980, kind: 'shard' });
+      }
+    }
+    function addDust(x, y, count, dx = 0) {
+      if (!feel.vfx) return;
+      const pal = getPalette(getBiome(wave));
+      for (let i = 0; i < count; i++) {
+        particles.push({ x: x + (Math.random() - 0.5) * 18, y: y - Math.random() * 6, vx: dx * (40 + Math.random() * 90) + (Math.random() - 0.5) * 65, vy: -15 - Math.random() * 55, life: 0.24 + Math.random() * 0.22, maxLife: 0.46, color: pal.dust, size: 4 + Math.random() * 6, gravity: -20, kind: 'dust' });
+      }
+    }
+    function addFloatText(x, y, text, color, scale = 1) { floatTexts.push({ x, y, vy: -88, text, color, scale, life: 0.72, maxLife: 0.72 }); }
+    function addArc(x, y, dir, arcType, color) { if (feel.vfx) arcs.push({ x, y, dir, arcType, color, life: 0.14, maxLife: 0.14 }); }
+    function addAfterimage(ent, color) {
+      if (!feel.vfx) return;
+      afterimages.push({ x: ent.x, y: ent.y, vx: ent.vx, dir: ent.dir, scaleX: ent.scaleX, scaleY: ent.scaleY, state: ent.state, attackKey: ent.attackKey, animTime: ent.animTime, color, life: 0.16, maxLife: 0.16 });
+    }
+    function addLightning(x, yTop, yBot) {
+      if (!feel.vfx) return;
+      const pts = [];
+      const steps = 6;
+      for (let i = 0; i <= steps; i++) {
+        pts.push({ x: x + (i === 0 || i === steps ? 0 : (Math.random() - 0.5) * 28), y: yTop + (yBot - yTop) * (i / steps) });
+      }
+      lightnings.push({ pts, life: 0.22, maxLife: 0.22 });
+    }
+
+    function gainEx(amount) {
+      const mult = 1 + hasUpgrade('fury') * 0.6 + (comboCount >= 8 ? 0.25 : 0);
+      player.ex = Math.min(player.maxEx, player.ex + amount * mult);
+    }
+
+    // ==================== Barrel Explosion ====================
+    function explodeBarrel(prop) {
+      const idx = props.indexOf(prop);
+      if (idx !== -1) props.splice(idx, 1);
+      sfx.explosion();
+      triggerHitStop(0.11);
+      triggerShake(22, 0, -0.5);
+      triggerZoom(1.08, 0.85);
+      addRing(prop.x, prop.y - 24, 155, '#f97316', 7);
+      addRing(prop.x, prop.y - 24, 105, '#facc15', 5);
+      addSparks(prop.x, prop.y - 24, 28, 0, -1, '#facc15', 460, 5);
+      addShards(prop.x, prop.y - 24, 14, 0, '#ef4444');
+      addFloatText(prop.x, prop.y - 78, 'BOOM!!', '#facc15', 1.45);
+
+      for (const e of enemies) {
+        if (e.state === 'dead') continue;
+        const dist = Math.hypot(e.x - prop.x, (e.y - 30) - (prop.y - 24));
+        if (dist < 165) {
+          const fakeAtk = { dmg: 64, posture: 45, hitstop: 0.04, kbX: 600, kbY: -340, shake: 12, color: '#f97316', power: 2.5, guardBreak: true, wallBounce: true, exGain: 10 };
+          const dir = e.x >= prop.x ? 1 : -1;
+          handleAttackHit(e, fakeAtk, true, dir);
+        }
+      }
+      if (mode === 'dummy') {
+        setTimeout(() => { if (mode === 'dummy') spawnProp('barrel', 550); }, 3200);
+      }
+    }
+
+    // ==================== Combat Actions ====================
+    function startAttack(keyName) {
+      const atk = ATTACKS[keyName];
+      const isLight = keyName === 'jab1' || keyName === 'jab2' || keyName === 'airKick';
+      if (!consumeStamina(atk.spCost || 0, isLight)) return;
+      player.state = 'attack';
+      player.attackKey = keyName;
+      player.attackTime = 0;
+      player.attackHitIds.clear();
+      player.vx = player.dir * atk.lunge;
+      if (keyName === 'uppercut') { player.vy = -315; player.onGround = false; }
+      else if (keyName === 'airKick') { player.vy = Math.min(player.vy, -140); }
+      else if (keyName === 'airSlam') { player.vx = player.dir * 265; player.vy = 780; }
+      applySquash(player, 1.28, 0.78);
+      sfx.whoosh(keyName === 'chargePunch' ? 0.65 : keyName === 'kick3' ? 0.85 : 1.15);
+      addArc(player.x + player.dir * 28, player.y - 34, player.dir, atk.arcType, atk.color);
+      if (player.onGround) addDust(player.x - player.dir * 12, GROUND_Y, 4, -player.dir);
+    }
+
+    function triggerLightAttack() {
+      if (player.state === 'hurt' || player.state === 'super') return;
+      if (player.state === 'dash') {
+        startAttack('dashKnee');
+        return;
+      }
+      if (!player.onGround) {
+        if (player.airComboCount < 2) { player.airComboCount++; startAttack('airKick'); }
+        return;
+      }
+      if (player.comboResetTimer > 0 && player.comboStep === 1) { player.comboStep = 2; startAttack('jab2'); }
+      else if (player.comboResetTimer > 0 && player.comboStep === 2) { player.comboStep = 0; startAttack('kick3'); }
+      else { player.comboStep = 1; startAttack('jab1'); }
+      player.comboResetTimer = 0.42;
+    }
+
+    function triggerParry() {
+      if (player.parryCooldown > 0 || player.state === 'hurt' || player.state === 'super') return;
+      if (!consumeStamina(12, false)) return;
+      kHolding = false; kHoldTime = 0;
+      player.state = 'parry';
+      player.parryTimer = 0.24 + hasUpgrade('parryking') * 0.08;
+      player.parryCooldown = 0.42;
+      player.vx *= 0.2;
+      applySquash(player, 0.9, 1.12);
+      addRing(player.x + player.dir * 12, player.y - 34, 42, '#facc15', 3);
+      sfx.whoosh(1.6);
+    }
+
+    function triggerSuper() {
+      if (player.ex < player.maxEx || player.state === 'super' || player.state === 'hurt') return;
+      kHolding = false; kHoldTime = 0;
+      player.ex = 0;
+      restoreStamina(player.maxSp, true);
+      player.state = 'super';
+      player.superStep = 0;
+      player.superTimer = 0;
+      player.invulnTimer = 1.4;
+      player.vx = 0; player.vy = 0;
+      superCinematicAlpha = 0.85;
+      slowMoTimer = 0.24; slowMoScale = 0.22;
+      triggerZoom(1.11, 1.0);
+      sfx.superStart();
+      addFloatText(player.x, player.y - 90, '奥义 · 崩山乱舞!!', '#facc15', 1.45);
+      addRing(player.x, player.y - 36, 110, '#facc15', 5);
+    }
+
+    function triggerDash() {
+      if (player.dashCooldown > 0 || player.state === 'hurt' || player.state === 'super') return;
+      const dashSp = hasUpgrade('phantom') ? 11 : 22;
+      if (!consumeStamina(dashSp, false)) return;
+      let perfect = false;
+      for (const e of enemies) {
+        if ((e.state === 'windup' || e.state === 'strike') && Math.abs(e.x - player.x) < 120) { perfect = true; break; }
+      }
+      const dashX = player.x, dashY = player.y;
+      player.state = 'dash';
+      kHolding = false; kHoldTime = 0; kChargeNotified = false;
+      player.dashTimer = 0.16;
+      player.dashCooldown = hasUpgrade('phantom') ? 0.14 : 0.28;
+      player.invulnTimer = 0.24;
+      const moveDir = (keys['KeyA'] || keys['ArrowLeft']) ? -1 : (keys['KeyD'] || keys['ArrowRight']) ? 1 : player.dir;
+      player.dir = moveDir;
+      player.vx = moveDir * 640;
+      player.vy = Math.min(0, player.vy);
+      applySquash(player, 1.38, 0.72);
+      addDust(player.x, player.y, 7, -moveDir);
+      sfx.whoosh(1.45);
+
+      // Phantom Bomb Upgrade
+      if (hasUpgrade('phantom')) {
+        addRing(dashX, dashY - 32, 72, '#a855f7', 4);
+        for (const e of enemies) {
+          if (e.state !== 'dead' && Math.abs(e.x - dashX) < 84) {
+            handleAttackHit(e, { dmg: 16 * hasUpgrade('phantom'), posture: 10, hitstop: 0.02, kbX: 180, kbY: -120, shake: 5, color: '#a855f7', power: 1.1, exGain: 5 }, true);
+          }
+        }
+      }
+
+      if (perfect) {
+        slowMoTimer = 0.36; slowMoScale = 0.3;
+        gainEx(18);
+        restoreStamina(32, true);
+        sfx.parry();
+        addFloatText(player.x, player.y - 80, '极限闪避! +EX +SP', '#38bdf8', 1.12);
+        addRing(player.x, player.y - 34, 74, '#38bdf8', 3);
+      }
+    }
+
+    function canActNow() {
+      if (player.state === 'idle' || player.state === 'run' || player.state === 'dash') return true;
+      if (player.state === 'attack') {
+        const atk = ATTACKS[player.attackKey];
+        return player.attackTime >= atk.startup + atk.active + 0.02 && player.attackKey !== 'airSlam';
+      }
+      return false;
+    }
+
+    function handleAttackHit(enemy, atk, isAoE = false, forcedDir = null) {
+      const hitDir = forcedDir !== null ? forcedDir : (enemy.x >= player.x ? 1 : -1);
+      const hitX = isAoE ? enemy.x : (player.x + enemy.x) * 0.5 + hitDir * 8;
+      const hitY = enemy.y - enemy.h * 0.54;
+
+      // Shield Front Block
+      const attackingFront = hitDir !== enemy.dir;
+      if (enemy.hasShield && attackingFront && !atk.guardBreak && !isAoE) {
+        enemy.vx = hitDir * 95;
+        enemy.flashTimer = 0.06;
+        applySquash(enemy, 0.85, 1.12);
+        triggerHitStop(0.045);
+        triggerShake(4, hitDir, 0);
+        addSparks(hitX, hitY, 10, -hitDir, -0.3, '#93c5fd', 290, 3);
+        addRing(hitX, hitY, 34, '#93c5fd', 3);
+        addFloatText(enemy.x, enemy.y - 74, '格挡! 长按K破防', '#60a5fa', 0.9);
+        sfx.block();
+        return;
+      }
+
+      // Compute damage with upgrades
+      let dmg = atk.dmg;
+      if (hasUpgrade('flame') && (atk === ATTACKS.chargePunch || atk === ATTACKS.uppercut || atk === ATTACKS.airSlam || atk === ATTACKS.kick3)) {
+        dmg = Math.round(dmg * (1 + 0.35 * hasUpgrade('flame')));
+        addRing(hitX, hitY, 58, '#f97316', 4);
+      }
+      if (hasUpgrade('fury') && (atk === ATTACKS.superFlurry || atk === ATTACKS.superFinisher)) {
+        dmg = Math.round(dmg * (1 + 0.35 * hasUpgrade('fury')));
+      }
+      if (enemy.state === 'stunned') dmg = Math.round(dmg * 1.45);
+
+      let hitstop = atk.hitstop;
+      let shake = atk.shake;
+
+      // Guard Break!
+      if (enemy.hasShield && atk.guardBreak) {
+        enemy.hasShield = false;
+        enemy.state = 'stunned';
+        enemy.stateTimer = 2.6;
+        dmg = Math.round(dmg * 1.25);
+        hitstop = 0.16; shake = 20;
+        slowMoTimer = 0.24; slowMoScale = 0.25;
+        triggerZoom(1.09, 0.95);
+        addShards(hitX, hitY, 16, hitDir, '#60a5fa');
+        addRing(hitX, hitY, 96, '#facc15', 6);
+        addFloatText(enemy.x, enemy.y - 92, 'GUARD BREAK!!', '#facc15', 1.38);
+        sfx.guardBreak();
+        gainEx(20);
+        restoreStamina(25, true);
+        runStats.guardBreaks++;
+        if (enemy.type === 'dummy') setTimeout(() => { if (enemies.includes(enemy)) enemy.hasShield = true; }, 3200);
+      } else {
+        sfx.hit(atk.power);
+        if (atk.zoom) triggerZoom(atk.zoom, atk.power >= 2 ? 0.65 : 0);
+      }
+
+      // Boss Posture / Armor Bar
+      let armorResisted = false;
+      if (enemy.isBoss && enemy.state !== 'stunned') {
+        enemy.posture = Math.max(0, enemy.posture - (atk.posture || 12));
+        if (enemy.posture <= 0) {
+          enemy.state = 'stunned';
+          enemy.stateTimer = 3.2;
+          enemy.posture = enemy.maxPosture;
+          hitstop = 0.16; shake = 22;
+          slowMoTimer = 0.28; slowMoScale = 0.25;
+          triggerZoom(1.1, 1.0);
+          addRing(hitX, hitY, 120, '#facc15', 6);
+          addFloatText(enemy.x, enemy.y - 115, '霸体破防 · 处决时机!!', '#facc15', 1.35);
+          sfx.guardBreak();
+          runStats.guardBreaks++;
+          restoreStamina(40, true);
+        } else if (enemy.state === 'windup' || enemy.state === 'strike') {
+          armorResisted = true; // Boss super-armor during attacks
+        }
+      }
+
+      if (enemy.type !== 'dummy') enemy.hp = Math.max(0, enemy.hp - dmg);
+      enemy.flashTimer = 0.085;
+      enemy.hitJitterTimer = hitstop + 0.04;
+
+      if (!armorResisted) {
+        const heavyFactor = enemy.isBoss ? 0.42 : enemy.isHeavy ? 0.68 : 1;
+        enemy.vx = hitDir * atk.kbX * (atk.guardBreak ? Math.max(0.75, heavyFactor) : heavyFactor);
+        enemy.vy = atk.kbY * (enemy.isBoss ? 0.35 : enemy.isHeavy && !atk.launcher ? 0.72 : 1);
+        enemy.wallBounceArmed = !!atk.wallBounce;
+        if (enemy.state !== 'stunned') {
+          enemy.state = 'hurt';
+          enemy.stateTimer = Math.max(0.32, hitstop + 0.25);
+        }
+      }
+
+      applySquash(enemy, atk.launcher ? 0.74 : 0.64, 1.36);
+      triggerHitStop(hitstop);
+      triggerShake(shake, hitDir, atk.launcher ? -0.7 : 0.2);
+      addSparks(hitX, hitY, Math.round(8 + atk.power * 5.5), hitDir, atk.launcher ? -0.8 : -0.15, atk.color, 300 + atk.power * 85, 3 + atk.power * 0.65);
+      addRing(hitX, hitY, 32 + atk.power * 20, atk.color, 2.5 + atk.power);
+      addFloatText(enemy.x + (Math.random() - 0.5) * 20, enemy.y - enemy.h - 10, `${dmg}`, atk.power >= 2 || enemy.state === 'stunned' ? '#facc15' : '#ffffff', atk.power >= 2 ? 1.25 : 0.95);
+
+      if (atk.exGain) gainEx(atk.exGain);
+      if (atk.spRefund) restoreStamina(atk.spRefund, false);
+
+      // Combo & Thunder Upgrade
+      comboCount++; comboTimer = 2.6; comboScale = 1.55;
+      if (comboCount > runStats.maxCombo) runStats.maxCombo = comboCount;
+      if (hasUpgrade('thunder')) {
+        thunderCounter++;
+        if (thunderCounter >= 4) {
+          thunderCounter = 0;
+          const ldmg = 22 * hasUpgrade('thunder');
+          if (enemy.type !== 'dummy') enemy.hp = Math.max(0, enemy.hp - ldmg);
+          addLightning(enemy.x, 10, enemy.y - enemy.h * 0.5);
+          addSparks(enemy.x, enemy.y - 36, 12, 0, -1, '#38bdf8', 320, 3.5);
+          addFloatText(enemy.x, enemy.y - enemy.h - 32, `⚡${ldmg}`, '#38bdf8', 1.15);
+          sfx.lightning();
+        }
+      }
+
+      score += dmg * Math.max(1, Math.min(5, Math.floor(comboCount / 3) + 1));
+      if (score > bestScore) { bestScore = score; hudBest.textContent = `BEST ${bestScore}`; try { localStorage.setItem("iron_impact_best", String(bestScore)); } catch {} }
+      hudScore.textContent = `SCORE ${score}`;
+
+      // KO Check
+      if (enemy.type !== 'dummy' && enemy.hp <= 0) {
+        enemy.state = 'dead';
+        runStats.kills++;
+        enemy.vx = hitDir * Math.max(380, Math.abs(enemy.vx));
+        enemy.vy = Math.min(-280, enemy.vy);
+        slowMoTimer = Math.max(slowMoTimer, enemy.isBoss ? 0.55 : 0.22);
+        slowMoScale = Math.min(slowMoScale, enemy.isBoss ? 0.2 : 0.35);
+        addFloatText(enemy.x, enemy.y - enemy.h - 18, enemy.isBoss ? 'BOSS 击破!!' : 'K.O.!', '#ef4444', enemy.isBoss ? 1.6 : 1.35);
+        if (hasUpgrade('vamp')) {
+          const heal = 14 * hasUpgrade('vamp');
+          player.hp = Math.min(player.maxHp, player.hp + heal);
+          restoreStamina(25 * hasUpgrade('vamp'), false);
+          addFloatText(player.x, player.y - 78, `+${heal} HP +SP`, '#22c55e', 0.95);
+        }
+        if (Math.random() < 0.28 || enemy.isBoss) {
+          spawnPickup(player.hp < player.maxHp * 0.65 ? 'heal' : 'ex', enemy.x, enemy.y - 28);
+        }
+      }
+    }
+
+    function damagePlayer(dmg, fromDir, attacker = null) {
+      // Check Active Parry!
+      if (player.state === 'parry') {
+        player.state = 'idle';
+        player.parryTimer = 0;
+        player.parryCooldown = 0.08;
+        player.invulnTimer = 0.45;
+        gainEx(32);
+        restoreStamina(hasUpgrade('parryking') ? player.maxSp : 50, true);
+        runStats.parries++;
+        const healAmt = 10 + hasUpgrade('parryking') * 15;
+        player.hp = Math.min(player.maxHp, player.hp + healAmt);
+        triggerHitStop(0.14);
+        triggerShake(15, -fromDir, 0);
+        triggerZoom(1.08, 0.9);
+        slowMoTimer = 0.25; slowMoScale = 0.28;
+        addRing(player.x + player.dir * 14, player.y - 34, 105, '#facc15', 6);
+        addSparks(player.x + player.dir * 14, player.y - 34, 22, -fromDir, -0.3, '#facc15', 420, 4.5);
+        addFloatText(player.x, player.y - 88, 'PERFECT PARRY!! +SP', '#facc15', 1.32);
+        sfx.parry();
+        if (attacker && attacker.state !== 'dead') {
+          attacker.state = 'stunned';
+          attacker.stateTimer = attacker.isBoss ? 2.2 : 2.5;
+          attacker.vx = -fromDir * 240;
+          attacker.flashTimer = 0.14;
+          if (attacker.isBoss) attacker.posture = Math.max(0, attacker.posture - 55);
+          if (hasUpgrade('parryking')) {
+            handleAttackHit(attacker, { dmg: 35 * hasUpgrade('parryking'), posture: 30, hitstop: 0.02, kbX: 320, kbY: -180, shake: 8, color: '#22c55e', power: 1.8, exGain: 0 }, true, -fromDir);
+          }
+        }
+        return 'parried';
+      }
+
+      if (player.invulnTimer > 0) return 'evaded';
+      runStats.waveNoHit = false;
+      player.hp = Math.max(0, player.hp - dmg);
+      player.state = 'hurt';
+      player.hurtTimer = 0.28;
+      player.invulnTimer = 0.6;
+      player.flashTimer = 0.1;
+      player.vx = fromDir * 260;
+      player.vy = -175;
+      kHolding = false; kHoldTime = 0;
+      comboCount = 0;
+      applySquash(player, 0.7, 1.32);
+      triggerHitStop(0.06);
+      triggerShake(11, fromDir, 0);
+      addSparks(player.x, player.y - 34, 10, fromDir, -0.2, '#ef4444', 280, 3);
+      addFloatText(player.x, player.y - 74, `-${dmg}`, '#ef4444', 1.15);
+      sfx.hit(1.5);
+      if (player.hp <= 0) {
+        if (mode === 'dummy') {
+          showBanner('训练复活！', '满血满体继续练习');
+          player.hp = player.maxHp;
+          restoreStamina(player.maxSp, true);
+          player.invulnTimer = 1.2;
+        } else {
+          triggerGameOver();
+        }
+      }
+      return 'hit';
+    }
+
+    // ==================== Update Loop ====================
+    function update(rawDt) {
+      const dtC = Math.min(rawDt, 0.04);
+
+      // Ambient weather always moves
+      const biome = getBiome(wave);
+      for (const a of ambientParticles) {
+        if (biome === 0) { // Rain
+          a.x -= 130 * a.spd * dtC; a.y += 420 * a.spd * dtC;
+          if (a.y > GROUND_Y) { a.y = -10; a.x = Math.random() * (W + 120); }
+        } else if (biome === 1) { // Rising embers
+          a.x += Math.sin(a.phase + performance.now() * 0.003) * 24 * dtC;
+          a.y -= 55 * a.spd * dtC;
+          if (a.y < 0) { a.y = GROUND_Y; a.x = Math.random() * W; }
+        } else { // Falling petals
+          a.x -= 45 * a.spd * dtC; a.y += 38 * a.spd * dtC;
+          a.phase += dtC * 3;
+          if (a.y > GROUND_Y || a.x < -10) { a.y = -8; a.x = Math.random() * (W + 80); }
+        }
+      }
+
+      if (upgradeChoices.length > 0 || gameOver) return; // Pause during upgrade selection or settlement
+
+      // Camera shake & zoom
+      if (camShakeMag > 0.1) {
+        camShakeX = (Math.random() - 0.5) * 2 * camShakeMag;
+        camShakeY = (Math.random() - 0.5) * 2 * camShakeMag;
+        camShakeMag *= Math.pow(0.0008, dtC);
+      } else { camShakeX = 0; camShakeY = 0; camShakeMag = 0; }
+      camZoom += (camZoomTarget - camZoom) * Math.min(1, dtC * 18);
+      camZoomTarget += (1 - camZoomTarget) * Math.min(1, dtC * 8);
+      speedLineAlpha = Math.max(0, speedLineAlpha - dtC * 3.5);
+      superCinematicAlpha = Math.max(0, superCinematicAlpha - dtC * 1.4);
+      if (bannerTimer > 0) bannerTimer -= dtC;
+
+      if (hitStopTimer > 0) {
+        hitStopTimer -= dtC;
+        for (const e of enemies) if (e.hitJitterTimer > 0) e.hitJitterTimer -= dtC;
+        return;
+      }
+
+      let timeScale = 1;
+      if (slowMoTimer > 0) { slowMoTimer -= dtC; timeScale = slowMoScale; }
+      const dt = dtC * timeScale;
+
+      if (comboTimer > 0) { comboTimer -= dtC; if (comboTimer <= 0) { comboCount = 0; thunderCounter = 0; } }
+      comboScale += (1 - comboScale) * Math.min(1, dtC * 14);
+
+      if (inputBuffer) {
+        if (performance.now() - inputBuffer.time > 140) inputBuffer = null;
+        else if (canActNow()) {
+          const act = inputBuffer.type; inputBuffer = null;
+          if (act === 'J') triggerLightAttack();
+          else if (act === 'K_TAP') startAttack(player.onGround ? 'uppercut' : 'airSlam');
+          else if (act === 'L') triggerDash();
+          else if (act === 'I') triggerParry();
+        }
+      }
+
+      // Charge K
+      if (kHolding) {
+        kHoldTime += dtC;
+        if (kHoldTime >= 0.16 && player.onGround && (player.state === 'idle' || player.state === 'run' || player.state === 'charge')) {
+          player.state = 'charge';
+          player.vx *= 0.82;
+          if (feel.squash) { const p = Math.min(1, kHoldTime / 0.35); player.scaleX = 1 + p * 0.22; player.scaleY = 1 - p * 0.22; }
+          if (feel.vfx && Math.random() < 0.65) {
+            const ang = Math.random() * 6.28, dist = 36 + Math.random() * 24;
+            particles.push({ x: player.x + player.dir * 10 + Math.cos(ang) * dist, y: player.y - 34 + Math.sin(ang) * dist, vx: -Math.cos(ang) * 145, vy: -Math.sin(ang) * 145, life: 0.2, maxLife: 0.2, color: kHoldTime >= 0.33 ? '#facc15' : '#fb923c', size: 3, gravity: 0, kind: 'spark' });
+          }
+          if (kHoldTime >= 0.33 && !kChargeNotified) {
+            kChargeNotified = true;
+            sfx.chargeReady();
+            addRing(player.x + player.dir * 12, player.y - 34, 48, '#facc15', 3);
+          }
+        }
+      }
+
+      updatePlayer(dt);
+      updateEnemies(dt);
+      updateProjectiles(dt);
+      updateShockwaves(dt);
+      updateProps(dt);
+      updatePickups(dt);
+      updateVFX(dt);
+
+      // Wave Progression & Roguelike Upgrade Picker
+      if (mode === 'waves') {
+        const alive = enemies.filter(e => e.state !== 'dead');
+        if (alive.length === 0) {
+          if (!waveClearPending) {
+            waveClearPending = true;
+            waveClearDelay = 0;
+            showBanner(`WAVE ${wave} 清场！`, '选择你的战后强化词条...');
+          } else {
+            waveClearDelay += dtC;
+            if (waveClearDelay >= 1.15) {
+              waveClearPending = false;
+              openUpgradePicker();
+            }
+          }
+        }
+      }
+    }
+
+    function hitCheckProps(boxX, reach, dir, isHeavy) {
+      for (let i = props.length - 1; i >= 0; i--) {
+        const p = props[i];
+        if (p.x + 18 >= boxX && p.x - 18 <= boxX + reach && Math.abs(p.y - player.y) < 70) {
+          p.flashTimer = 0.08;
+          applySquash(p, 0.72, 1.3);
+          if (p.kind === 'crate') {
+            props.splice(i, 1);
+            sfx.hit(1.5);
+            triggerHitStop(0.045);
+            addShards(p.x, p.y - 22, 12, dir, '#d97706');
+            spawnPickup(player.hp < player.maxHp * 0.75 ? 'heal' : 'ex', p.x, p.y - 24);
+            addFloatText(p.x, p.y - 54, '补给掉落!', '#facc15', 0.95);
+          } else if (p.kind === 'barrel') {
+            p.hp--;
+            if (p.hp <= 0 || isHeavy) {
+              if (!p.flying && !isHeavy) {
+                p.flying = true; p.vx = dir * 560; p.vy = -120;
+                sfx.hit(1.8); triggerHitStop(0.05); triggerShake(7, dir, 0);
+                addFloatText(p.x, p.y - 56, '轰飞油桶!', '#f97316', 1.0);
+              } else {
+                explodeBarrel(p);
+              }
+            } else {
+              p.flying = true; p.vx = dir * 540; p.vy = -110;
+              sfx.hit(1.6); triggerHitStop(0.05); triggerShake(6, dir, 0);
+              addFloatText(p.x, p.y - 56, '击飞油桶!', '#fb923c', 1.0);
+            }
+          }
+        }
+      }
+    }
+
+    function updatePlayer(dt) {
+      player.animTime += dt;
+      if (player.comboResetTimer > 0) player.comboResetTimer -= dt;
+      if (player.dashCooldown > 0) player.dashCooldown -= dt;
+      if (player.parryCooldown > 0) player.parryCooldown -= dt;
+      if (player.invulnTimer > 0) player.invulnTimer -= dt;
+      if (player.flashTimer > 0) player.flashTimer -= dt;
+      if (player.spRegenDelay > 0) player.spRegenDelay -= dt;
+      if (player.exhaustedTimer > 0) player.exhaustedTimer -= dt;
+
+      // Stamina drain while holding charge / auto-regen when resting
+      if (player.state === 'charge') {
+        player.sp = Math.max(0, player.sp - 12 * dt);
+        player.spRegenDelay = 0.4;
+      } else if (player.spRegenDelay <= 0 && player.state !== 'attack' && player.state !== 'dash') {
+        const baseRate = player.exhaustedTimer > 0 ? 22 : 48;
+        const rate = baseRate * (1 + hasUpgrade('breath') * 0.45);
+        player.sp = Math.min(player.maxSp, player.sp + rate * dt);
+      }
+
+      if (player.state !== 'charge') {
+        player.scaleX += (1 - player.scaleX) * Math.min(1, dt * 16);
+        player.scaleY += (1 - player.scaleY) * Math.min(1, dt * 16);
+      }
+
+      const moveL = keys['KeyA'] || keys['ArrowLeft'];
+      const moveR = keys['KeyD'] || keys['ArrowRight'];
+      const moveAxis = (moveR ? 1 : 0) - (moveL ? 1 : 0);
+
+      if (player.state === 'super') {
+        player.superTimer += dt;
+        superCinematicAlpha = Math.max(superCinematicAlpha, 0.55);
+        if (Math.random() < 0.8) addAfterimage(player, '#facc15');
+        const interval = 0.085;
+        if (player.superStep < 7 && player.superTimer >= 0.18 + player.superStep * interval) {
+          player.superStep++;
+          player.x = Math.max(WALL_L + 20, Math.min(WALL_R - 20, player.x + player.dir * 26));
+          addArc(player.x + player.dir * 34, player.y - 34 + (Math.random() - 0.5) * 28, player.dir, player.superStep % 2 === 0 ? 'hook' : 'thrust', '#facc15');
+          sfx.whoosh(1.4);
+          applySquash(player, 1.32, 0.78);
+          for (const e of enemies) {
+            if (e.state === 'dead') continue;
+            const d = (e.x - player.x) * player.dir;
+            if (d > -35 && d < 160) {
+              // Pull gently into flurry
+              e.x += (player.x + player.dir * 68 - e.x) * 0.25;
+              handleAttackHit(e, ATTACKS.superFlurry, true, player.dir);
+            }
+          }
+        } else if (player.superStep === 7 && player.superTimer >= 0.18 + 7 * interval + 0.12) {
+          player.superStep = 8;
+          addArc(player.x + player.dir * 42, player.y - 34, player.dir, 'mega', '#f97316');
+          addRing(player.x + player.dir * 52, player.y - 34, 130, '#f97316', 6);
+          for (const e of enemies) {
+            if (e.state === 'dead') continue;
+            const d = (e.x - player.x) * player.dir;
+            if (d > -40 && d < 190) {
+              handleAttackHit(e, ATTACKS.superFinisher, true, player.dir);
+            }
+          }
+        } else if (player.superTimer >= 1.15) {
+          player.state = 'idle';
+        }
+      } else if (player.state === 'parry') {
+        player.parryTimer -= dt;
+        player.vx *= Math.pow(0.02, dt);
+        if (player.parryTimer <= 0) player.state = 'idle';
+      } else if (player.state === 'dash') {
+        player.dashTimer -= dt;
+        if (Math.random() < 0.78) addAfterimage(player, hasUpgrade('phantom') ? '#a855f7' : '#fb923c');
+        if (player.dashTimer <= 0) { player.state = 'idle'; player.vx *= 0.4; }
+      } else if (player.state === 'hurt') {
+        player.hurtTimer -= dt;
+        player.vx *= Math.pow(0.05, dt);
+        if (player.hurtTimer <= 0) player.state = 'idle';
+      } else if (player.state === 'attack') {
+        const atk = ATTACKS[player.attackKey];
+        player.attackTime += dt;
+        if (player.attackKey === 'airSlam') {
+          if (Math.random() < 0.8) addAfterimage(player, '#f97316');
+          if (player.onGround) {
+            triggerShake(16, 0, 1);
+            addRing(player.x, GROUND_Y - 6, 135, '#f97316', 5);
+            addDust(player.x, GROUND_Y, 14, 0);
+            sfx.hit(2.4);
+            for (const e of enemies) {
+              if (e.state !== 'dead' && Math.abs(e.x - player.x) <= atk.reach && Math.abs(e.y - player.y) < 95) {
+                handleAttackHit(e, atk, true);
+              }
+            }
+            hitCheckProps(player.x - atk.reach, atk.reach * 2, player.dir, true);
+            applySquash(player, 1.4, 0.65);
+            player.state = 'idle'; player.vx = 0;
+          }
+        } else {
+          player.vx *= Math.pow(0.015, dt);
+          if (player.attackTime >= atk.startup && player.attackTime <= atk.startup + atk.active) {
+            const boxX = player.dir === 1 ? player.x + 8 : player.x - 8 - atk.reach;
+            const boxY = player.y - atk.height - 6;
+            for (const e of enemies) {
+              if (e.state === 'dead' || player.attackHitIds.has(e.id)) continue;
+              const ex1 = e.x - e.w * 0.5, ex2 = e.x + e.w * 0.5;
+              const ey1 = e.y - e.h, ey2 = e.y;
+              if (ex2 >= boxX && ex1 <= boxX + atk.reach && ey2 >= boxY && ey1 <= player.y + 8) {
+                player.attackHitIds.add(e.id);
+                handleAttackHit(e, atk);
+              }
+            }
+            // Deflect enemy projectiles with attacks too!
+            for (const pr of projectiles) {
+              if (!pr.friendly && pr.x >= boxX && pr.x <= boxX + atk.reach && Math.abs(pr.y - (player.y - 34)) < 44) {
+                pr.friendly = true;
+                pr.vx = player.dir * Math.abs(pr.vx) * 1.45;
+                sfx.parry(); triggerHitStop(0.055);
+                addSparks(pr.x, pr.y, 12, player.dir, 0, '#38bdf8', 320, 3.5);
+                addFloatText(pr.x, pr.y - 24, '打飞飞镖!', '#38bdf8', 1.0);
+                gainEx(12);
+              }
+            }
+            hitCheckProps(boxX, atk.reach, player.dir, atk.power >= 2);
+          }
+          if (player.attackTime >= atk.startup + atk.active + atk.recovery) {
+            player.state = 'idle'; player.attackKey = null;
+          }
+        }
+      } else if (player.state === 'charge') {
+        if (moveAxis !== 0) player.dir = moveAxis;
+      } else {
+        const targetVx = moveAxis * 335;
+        player.vx += (targetVx - player.vx) * Math.min(1, dt * 18);
+        if (moveAxis !== 0) { player.dir = moveAxis; player.state = 'run'; }
+        else player.state = 'idle';
+      }
+
+      const wasOnGround = player.onGround;
+      player.vy += GRAVITY * dt;
+      player.x += player.vx * dt;
+      player.y += player.vy * dt;
+
+      if (player.y >= GROUND_Y) {
+        player.y = GROUND_Y; player.vy = 0; player.onGround = true;
+        player.airJumps = 1; player.airComboCount = 0;
+        if (!wasOnGround) { applySquash(player, 1.24, 0.78); addDust(player.x, GROUND_Y, 6, 0); }
+      } else player.onGround = false;
+
+      player.x = Math.max(WALL_L, Math.min(WALL_R, player.x));
+
+      // Headband cloth physics
+      player.bandPoints[0].x = player.x - player.dir * 6;
+      player.bandPoints[0].y = player.y - 54 * player.scaleY;
+      for (let i = 1; i < player.bandPoints.length; i++) {
+        const prev = player.bandPoints[i - 1], pt = player.bandPoints[i];
+        pt.x += (-player.dir * 58 - player.vx * 0.14) * dt;
+        pt.y += (Math.sin(player.animTime * 14 + i) * 26 + 16) * dt;
+        const dx = pt.x - prev.x, dy = pt.y - prev.y, d = Math.hypot(dx, dy) || 1;
+        pt.x = prev.x + (dx / d) * 6.5; pt.y = prev.y + (dy / d) * 6.5;
+      }
+    }
+
+    function updateEnemies(dt) {
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        e.animTime += dt;
+        if (e.flashTimer > 0) e.flashTimer -= dt;
+        if (e.hitJitterTimer > 0) e.hitJitterTimer -= dt;
+        e.scaleX += (1 - e.scaleX) * Math.min(1, dt * 14);
+        e.scaleY += (1 - e.scaleY) * Math.min(1, dt * 14);
+
+        e.vy += GRAVITY * dt;
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+
+        // Ground collision
+        if (e.y >= GROUND_Y) {
+          const hitHard = e.vy > 240;
+          e.y = GROUND_Y; e.vy = 0;
+          if (hitHard) {
+            applySquash(e, 1.32, 0.72);
+            addDust(e.x, GROUND_Y, 6, 0);
+            // Boss Jump Slam Shockwave!
+            if (e.isBoss && e.state === 'strike' && e.subAttack === 'slam') {
+              triggerShake(18, 0, 1);
+              sfx.explosion();
+              addRing(e.x, GROUND_Y - 6, 130, '#ef4444', 5);
+              shockwaves.push({ x: e.x, vx: -340, life: 0.9, maxLife: 0.9, dmg: 16 });
+              shockwaves.push({ x: e.x, vx: 340,  life: 0.9, maxLife: 0.9, dmg: 16 });
+              if (Math.abs(player.x - e.x) < 92 && player.y > GROUND_Y - 35) {
+                damagePlayer(e.dmg, player.x >= e.x ? 1 : -1, e);
+              }
+              e.state = 'recover'; e.stateTimer = 0.75; e.subAttack = '';
+            }
+          }
+          if (e.state === 'hurt' || e.state === 'stunned' || e.state === 'dead') e.vx *= Math.pow(0.012, dt);
+        }
+
+        // Wall Bounce!
+        if (e.x < WALL_L || e.x > WALL_R) {
+          const hitLeft = e.x < WALL_L;
+          e.x = hitLeft ? WALL_L : WALL_R;
+          if (e.isBoss && e.state === 'strike' && e.subAttack === 'charge') {
+            // Boss crashed into wall -> self stunned!
+            e.vx = (hitLeft ? 1 : -1) * 180; e.vy = -160;
+            e.state = 'stunned'; e.stateTimer = 2.0; e.subAttack = '';
+            triggerShake(16, hitLeft ? -1 : 1, 0); sfx.hit(2.5);
+            addFloatText(e.x + (hitLeft ? 50 : -50), e.y - 100, '撞墙眩晕! 快打!', '#facc15', 1.25);
+          } else if (Math.abs(e.vx) > 250 && (e.wallBounceArmed || e.state === 'hurt')) {
+            e.wallBounceArmed = false;
+            e.vx = -e.vx * 0.54; e.vy = -275;
+            const wbDmg = 12 + hasUpgrade('wallcrush') * 12;
+            if (e.type !== 'dummy') e.hp = Math.max(0, e.hp - wbDmg);
+            if (hasUpgrade('wallcrush')) gainEx(18 * hasUpgrade('wallcrush'));
+            applySquash(e, 0.58, 1.42);
+            triggerHitStop(0.055);
+            triggerShake(11, hitLeft ? -1 : 1, 0);
+            addRing(e.x, e.y - 34, 62, '#fb923c', 4);
+            addSparks(e.x, e.y - 34, 12, hitLeft ? 1 : -1, -0.3, '#fb923c', 280, 3.5);
+            addFloatText(e.x + (hitLeft ? 34 : -34), e.y - 68, `撞墙 +${wbDmg}`, '#fb923c', 1.05);
+            sfx.hit(1.7);
+          } else e.vx = 0;
+        }
+
+        if (e.state === 'dead') { e.deadAlpha -= dt * 1.3; if (e.deadAlpha <= 0) enemies.splice(i, 1); continue; }
+
+        // Dummy & Turret Dummy
+        if (e.type === 'dummy') {
+          if (e.state === 'hurt' || e.state === 'stunned') {
+            e.stateTimer -= dt;
+            if (e.stateTimer <= 0 && e.y >= GROUND_Y) e.state = 'idle';
+          }
+          e.dir = player.x >= e.x ? 1 : -1;
+          if (e.isTurret && e.state === 'idle') {
+            e.turretTimer -= dt;
+            if (e.turretTimer <= 0) {
+              e.turretTimer = 2.6;
+              projectiles.push({ x: e.x + e.dir * 22, y: e.y - 36, vx: e.dir * 340, dmg: 10, friendly: false, owner: e, rot: 0 });
+              sfx.whoosh(1.5);
+            }
+          }
+          continue;
+        }
+
+        // Hurt / Stunned recovery
+        if (e.state === 'hurt' || e.state === 'stunned') {
+          e.stateTimer -= dt;
+          if (e.stateTimer <= 0 && e.y >= GROUND_Y) { e.state = 'idle'; e.aiCooldown = 0.35; }
+          continue;
+        }
+
+        const dist = player.x - e.x;
+        const absDist = Math.abs(dist);
+
+        // BOSS AI
+        if (e.isBoss) {
+          if (e.state === 'windup') {
+            e.vx *= Math.pow(0.04, dt);
+            e.stateTimer -= dt;
+            if (e.stateTimer <= 0) {
+              e.state = 'strike';
+              if (e.subAttack === 'slam') {
+                e.vy = -590; e.vx = e.dir * Math.min(340, absDist * 1.1);
+                e.stateTimer = 1.4; sfx.whoosh(0.6);
+              } else if (e.subAttack === 'charge') {
+                e.vx = e.dir * 520; e.stateTimer = 0.65; sfx.whoosh(0.5);
+              } else {
+                e.vx = e.dir * 240; e.stateTimer = 0.16; sfx.whoosh(0.75);
+                if (absDist < 96 && Math.abs(player.y - e.y) < 68) damagePlayer(e.dmg, e.dir, e);
+              }
+            }
+          } else if (e.state === 'strike') {
+            e.stateTimer -= dt;
+            if (e.subAttack === 'charge') {
+              if (Math.random() < 0.7) addDust(e.x, GROUND_Y, 2, -e.dir);
+              if (absDist < 54 && Math.abs(player.y - e.y) < 62) damagePlayer(e.dmg, e.dir, e);
+            }
+            if (e.stateTimer <= 0) { e.state = 'recover'; e.stateTimer = 0.65; e.subAttack = ''; }
+          } else if (e.state === 'recover') {
+            e.vx *= Math.pow(0.04, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = 0.5; }
+          } else {
+            e.dir = dist >= 0 ? 1 : -1;
+            e.aiCooldown -= dt;
+            if (absDist > 92) e.vx += (e.dir * e.speed - e.vx) * Math.min(1, dt * 7);
+            else e.vx *= Math.pow(0.05, dt);
+            if (e.aiCooldown <= 0) {
+              const r = Math.random();
+              e.state = 'windup';
+              if (absDist > 210 && r < 0.55) { e.subAttack = 'charge'; e.stateTimer = 0.65; addFloatText(e.x, e.y - 108, '狂暴冲撞! (弹反/跳躲)', '#ef4444', 1.0); }
+              else if (r < 0.45) { e.subAttack = 'slam'; e.stateTimer = 0.55; addFloatText(e.x, e.y - 108, '泰山压顶! (跳躲震荡波)', '#f97316', 1.0); }
+              else { e.subAttack = 'punch'; e.stateTimer = 0.48; }
+              applySquash(e, 1.2, 0.84);
+            }
+          }
+          continue;
+        }
+
+        // REGULAR ENEMY AI
+        if (e.state === 'windup') {
+          e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+          if (e.stateTimer <= 0) {
+            e.state = 'strike'; e.stateTimer = 0.14;
+            if (e.type === 'striker') {
+              projectiles.push({ x: e.x + e.dir * 20, y: e.y - 36, vx: e.dir * 380, dmg: e.dmg, friendly: false, owner: e, rot: 0 });
+              sfx.whoosh(1.6);
+            } else {
+              e.vx = e.dir * (e.type === 'acrobat' ? 320 : e.isHeavy ? 235 : 185);
+              if (e.type === 'acrobat' && e.y >= GROUND_Y) e.vy = -240;
+              sfx.whoosh(0.95);
+              if (absDist < (e.isHeavy ? 80 : 66) && Math.abs(player.y - e.y) < 58) damagePlayer(e.dmg, e.dir, e);
+            }
+          }
+        } else if (e.state === 'strike') {
+          e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+          if (e.stateTimer <= 0) { e.state = 'recover'; e.stateTimer = e.isHeavy ? 0.55 : 0.4; }
+        } else if (e.state === 'recover') {
+          e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+          if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = 0.35 + Math.random() * 0.45; }
+        } else {
+          e.dir = dist >= 0 ? 1 : -1;
+          e.aiCooldown -= dt;
+          if (e.type === 'striker') {
+            const ideal = 250;
+            if (absDist < 170) e.vx += (-e.dir * e.speed - e.vx) * Math.min(1, dt * 7);
+            else if (absDist > ideal + 40) e.vx += (e.dir * e.speed - e.vx) * Math.min(1, dt * 7);
+            else e.vx *= Math.pow(0.05, dt);
+            if (e.aiCooldown <= 0 && absDist < 420) {
+              e.state = 'windup'; e.stateTimer = 0.48; applySquash(e, 1.16, 0.88);
+            }
+          } else {
+            const range = e.type === 'acrobat' ? 110 : e.isHeavy ? 72 : 60;
+            if (absDist > range) e.vx += (e.dir * e.speed - e.vx) * Math.min(1, dt * 8);
+            else {
+              e.vx *= Math.pow(0.05, dt);
+              if (e.aiCooldown <= 0) {
+                e.state = 'windup'; e.stateTimer = e.isHeavy ? 0.52 : e.type === 'acrobat' ? 0.36 : 0.42;
+                applySquash(e, 1.18, 0.86);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function updateProjectiles(dt) {
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const pr = projectiles[i];
+        pr.x += pr.vx * dt;
+        pr.rot += dt * 22;
+        if (pr.x < WALL_L - 20 || pr.x > WALL_R + 20) { projectiles.splice(i, 1); continue; }
+
+        if (!pr.friendly) {
+          if (Math.abs(pr.x - player.x) < 26 && Math.abs(pr.y - (player.y - 34)) < 34) {
+            const res = damagePlayer(pr.dmg, pr.vx > 0 ? 1 : -1, null);
+            if (res === 'parried') {
+              pr.friendly = true;
+              pr.vx = -pr.vx * 1.65;
+              addFloatText(pr.x, pr.y - 32, '完美反弹!!', '#facc15', 1.2);
+            } else if (res === 'hit') {
+              projectiles.splice(i, 1);
+            }
+          }
+        } else {
+          for (const e of enemies) {
+            if (e.state !== 'dead' && Math.abs(pr.x - e.x) < e.w * 0.6 + 12 && Math.abs(pr.y - (e.y - e.h * 0.5)) < 40) {
+              handleAttackHit(e, { dmg: 38, posture: 35, hitstop: 0.08, kbX: 380, kbY: -220, shake: 12, color: '#38bdf8', power: 2.0, guardBreak: true, exGain: 15 }, true, pr.vx > 0 ? 1 : -1);
+              e.state = 'stunned'; e.stateTimer = 1.6;
+              projectiles.splice(i, 1);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    function updateShockwaves(dt) {
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const s = shockwaves[i];
+        s.x += s.vx * dt; s.life -= dt;
+        if (s.life <= 0 || s.x < WALL_L || s.x > WALL_R) { shockwaves.splice(i, 1); continue; }
+        if (Math.abs(s.x - player.x) < 26 && player.y > GROUND_Y - 26) {
+          const res = damagePlayer(s.dmg, s.vx > 0 ? 1 : -1, null);
+          if (res !== 'evaded') shockwaves.splice(i, 1);
+        }
+      }
+    }
+
+    function updateProps(dt) {
+      for (let i = props.length - 1; i >= 0; i--) {
+        const p = props[i];
+        if (p.flashTimer > 0) p.flashTimer -= dt;
+        p.scaleX += (1 - p.scaleX) * Math.min(1, dt * 14);
+        p.scaleY += (1 - p.scaleY) * Math.min(1, dt * 14);
+        p.vy += GRAVITY * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        if (p.y >= GROUND_Y) { p.y = GROUND_Y; p.vy = 0; p.vx *= Math.pow(0.06, dt); }
+        if (p.flying) {
+          // Hit wall -> explode
+          if (p.x <= WALL_L + 10 || p.x >= WALL_R - 10) { explodeBarrel(p); continue; }
+          // Hit enemy -> explode!
+          let hit = false;
+          for (const e of enemies) {
+            if (e.state !== 'dead' && Math.abs(e.x - p.x) < e.w * 0.5 + 18) { hit = true; break; }
+          }
+          if (hit) { explodeBarrel(p); continue; }
+          if (Math.abs(p.vx) < 40) p.flying = false;
+        }
+      }
+    }
+
+    function updatePickups(dt) {
+      for (let i = pickups.length - 1; i >= 0; i--) {
+        const pk = pickups[i];
+        pk.life -= dt; pk.anim += dt;
+        pk.vy += GRAVITY * dt; pk.x += pk.vx * dt; pk.y += pk.vy * dt;
+        if (pk.y >= GROUND_Y) { pk.y = GROUND_Y; pk.vy = -pk.vy * 0.35; pk.vx *= 0.6; }
+        pk.x = Math.max(WALL_L + 16, Math.min(WALL_R - 16, pk.x));
+        if (pk.life <= 0) { pickups.splice(i, 1); continue; }
+        if (Math.abs(pk.x - player.x) < 34 && Math.abs(pk.y - player.y) < 48) {
+          sfx.pickup();
+          if (pk.kind === 'heal') {
+            player.hp = Math.min(player.maxHp, player.hp + 30);
+            restoreStamina(40, true);
+            addFloatText(player.x, player.y - 76, '+30 HP +SP', '#22c55e', 1.15);
+          } else {
+            gainEx(45);
+            restoreStamina(40, true);
+            addFloatText(player.x, player.y - 76, '+EX +SP!', '#facc15', 1.15);
+          }
+          addRing(pk.x, pk.y - 12, 42, pk.kind === 'heal' ? '#22c55e' : '#facc15', 3);
+          pickups.splice(i, 1);
+        }
+      }
+    }
+
+    function updateVFX(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i]; p.life -= dt;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        p.vy += p.gravity * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+        if (p.rot !== undefined) p.rot += p.vrot * dt;
+        if (p.y > GROUND_Y && p.kind === 'shard') { p.y = GROUND_Y; p.vy *= -0.4; p.vx *= 0.7; }
+      }
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i]; r.life -= dt;
+        if (r.life <= 0) { rings.splice(i, 1); continue; }
+        r.r = 8 + (r.maxR - 8) * (1 - Math.pow(r.life / r.maxLife, 3));
+      }
+      for (let i = arcs.length - 1; i >= 0; i--) { arcs[i].life -= dt; if (arcs[i].life <= 0) arcs.splice(i, 1); }
+      for (let i = floatTexts.length - 1; i >= 0; i--) { const f = floatTexts[i]; f.life -= dt; f.y += f.vy * dt; f.vy *= Math.pow(0.1, dt); if (f.life <= 0) floatTexts.splice(i, 1); }
+      for (let i = afterimages.length - 1; i >= 0; i--) { afterimages[i].life -= dt; if (afterimages[i].life <= 0) afterimages.splice(i, 1); }
+      for (let i = lightnings.length - 1; i >= 0; i--) { lightnings[i].life -= dt; if (lightnings[i].life <= 0) lightnings.splice(i, 1); }
+    }
+
+    // ==================== Rendering ====================
+    function drawStage(pal, biome) {
+      const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+      grad.addColorStop(0, pal.skyTop); grad.addColorStop(1, pal.skyBot);
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, W, GROUND_Y);
+
+      // Biome backdrop landmarks
+      if (biome === 0) { // Neon Alley signs
+        ctx.fillStyle = pal.pillar;
+        for (let x = 60; x < W; x += 145) ctx.fillRect(x, 30, 34, GROUND_Y - 30);
+        ctx.strokeStyle = pal.accentGlow; ctx.globalAlpha = 0.3; ctx.lineWidth = 2;
+        ctx.strokeRect(170, 52, 92, 30); ctx.strokeRect(650, 44, 110, 32);
+        ctx.globalAlpha = 1;
+      } else if (biome === 1) { // Steel Cage spotlights
+        ctx.fillStyle = pal.pillar;
+        for (let x = 50; x < W; x += 90) ctx.fillRect(x, 0, 12, GROUND_Y);
+        ctx.strokeStyle = pal.pillar; ctx.lineWidth = 2;
+        for (let y = 40; y < GROUND_Y; y += 52) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+      } else { // Sunset Sun disc & Torii pillars
+        ctx.fillStyle = isLightTheme ? 'rgba(234,88,12,0.16)' : 'rgba(251,146,60,0.18)';
+        ctx.beginPath(); ctx.arc(W * 0.5, GROUND_Y - 52, 92, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = pal.pillar;
+        ctx.fillRect(140, 20, 26, GROUND_Y - 20); ctx.fillRect(W - 166, 20, 26, GROUND_Y - 20);
+      }
+
+      // Ambient weather particles
+      ctx.save();
+      for (const a of ambientParticles) {
+        if (biome === 0) {
+          ctx.strokeStyle = isLightTheme ? 'rgba(51,65,85,0.22)' : 'rgba(148,163,184,0.24)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x - 5, a.y + 14); ctx.stroke();
+        } else if (biome === 1) {
+          ctx.fillStyle = 'rgba(251,146,60,0.55)';
+          ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.7, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.fillStyle = isLightTheme ? 'rgba(234,88,12,0.4)' : 'rgba(253,186,116,0.45)';
+          ctx.beginPath(); ctx.ellipse(a.x, a.y, a.size * 1.4, a.size * 0.7, a.phase, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.restore();
+
+      // Floor
+      const fGrad = ctx.createLinearGradient(0, GROUND_Y, 0, H);
+      fGrad.addColorStop(0, pal.floorTop); fGrad.addColorStop(1, pal.floorBot);
+      ctx.fillStyle = fGrad; ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+      ctx.strokeStyle = pal.floorLine; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
+
+      ctx.globalAlpha = 0.32; ctx.lineWidth = 1;
+      for (let x = 60; x < W; x += 92) {
+        ctx.beginPath(); ctx.moveTo(x, GROUND_Y); ctx.lineTo(x + (x - W / 2) * 0.25, H); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Super Cinematic Darkening
+      if (superCinematicAlpha > 0.02) {
+        ctx.fillStyle = `rgba(4,6,14,${superCinematicAlpha * 0.72})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    function drawFighter(ent, isPlayer, pal, overrideColor = null, alpha = 1) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const jitterX = ent.hitJitterTimer > 0 ? (Math.random() - 0.5) * 9 : 0;
+      const jitterY = ent.hitJitterTimer > 0 ? (Math.random() - 0.5) * 4 : 0;
+
+      if (!overrideColor) {
+        const sScale = Math.max(0.35, 1 - Math.max(0, GROUND_Y - ent.y) / 260);
+        ctx.fillStyle = pal.shadow;
+        ctx.beginPath();
+        ctx.ellipse(ent.x, GROUND_Y + 3, (ent.isBoss ? 34 : 22) * sScale, 6 * sScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.translate(ent.x + jitterX, ent.y + jitterY);
+      ctx.scale(ent.dir * ent.scaleX, ent.scaleY);
+
+      const flashing = ent.flashTimer > 0;
+      const bodyCol = overrideColor || (flashing ? '#ffffff' : (isPlayer ? pal.playerBody : pal[ent.colorKey]));
+      const accentCol = overrideColor || (flashing ? '#facc15' : (isPlayer ? pal.playerAccent : '#f8fafc'));
+      const h = isPlayer ? 62 : ent.h;
+      const runCycle = (Math.abs(ent.vx || 0) > 30 && ent.y >= GROUND_Y - 1) ? Math.sin((ent.animTime || 0) * 15) : 0;
+
+      let lean = 0, punchExt = 0, kickExt = 0, upperExt = 0;
+      if (isPlayer) {
+        if (ent.state === 'charge') lean = -0.25;
+        else if (ent.state === 'dash') lean = 0.34;
+        else if (ent.state === 'parry') lean = -0.14;
+        else if (ent.state === 'super') { lean = 0.28; punchExt = 1.3; }
+        else if (ent.state === 'attack') {
+          if (ent.attackKey === 'jab1' || ent.attackKey === 'jab2') { lean = 0.22; punchExt = 1; }
+          else if (ent.attackKey === 'chargePunch') { lean = 0.34; punchExt = 1.48; }
+          else if (ent.attackKey === 'dashKnee') { lean = 0.35; kickExt = 0.9; }
+          else if (ent.attackKey === 'kick3' || ent.attackKey === 'airKick') { lean = -0.18; kickExt = 1; }
+          else if (ent.attackKey === 'uppercut') { lean = 0.1; upperExt = 1; }
+          else if (ent.attackKey === 'airSlam') { lean = 0.4; kickExt = 0.9; }
+        } else if (ent.state === 'hurt') lean = -0.35;
+      } else {
+        if (ent.state === 'windup') lean = -0.28;
+        else if (ent.state === 'strike') { lean = 0.3; punchExt = 1.15; }
+        else if (ent.state === 'hurt') lean = -0.38;
+        else if (ent.state === 'stunned') lean = Math.sin(ent.animTime * 16) * 0.14;
+      }
+
+      ctx.rotate(lean);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+      // Legs
+      ctx.strokeStyle = bodyCol;
+      ctx.lineWidth = ent.isBoss ? 12 : ent.isHeavy ? 9 : 6.5;
+      ctx.beginPath(); ctx.moveTo(-4, -h * 0.38); ctx.lineTo(-10 - runCycle * 11, -3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(4, -h * 0.38);
+      if (kickExt > 0) ctx.lineTo(36 * kickExt, -34);
+      else ctx.lineTo(10 + runCycle * 11, -3);
+      ctx.stroke();
+
+      // Torso
+      ctx.fillStyle = bodyCol;
+      const torsoW = ent.isBoss ? 38 : ent.isHeavy ? 26 : 18;
+      ctx.beginPath(); ctx.roundRect(-torsoW / 2, -h + 16, torsoW, h * 0.5, 7); ctx.fill();
+
+      // Boss / Heavy Armor Pads
+      if (!isPlayer && (ent.isHeavy || ent.isBoss) && !overrideColor) {
+        ctx.fillStyle = flashing ? '#ffffff' : (ent.isBoss ? '#facc15' : '#ef4444');
+        ctx.beginPath(); ctx.roundRect(-torsoW * 0.72, -h + 15, torsoW * 1.44, ent.isBoss ? 15 : 11, 5); ctx.fill();
+      }
+
+      // Head
+      ctx.fillStyle = bodyCol;
+      ctx.beginPath(); ctx.arc(1, -h + 9, ent.isBoss ? 14.5 : ent.isHeavy ? 11.5 : 9.5, 0, Math.PI * 2); ctx.fill();
+
+      // Visor / Headband / Boss Horns
+      if (!overrideColor) {
+        ctx.fillStyle = isPlayer ? pal.playerBand : (ent.state === 'windup' ? '#ef4444' : '#facc15');
+        ctx.fillRect(-7, -h + 5, ent.isBoss ? 22 : 16, 4);
+        if (ent.isBoss) {
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath(); ctx.moveTo(-4, -h - 3); ctx.lineTo(-12, -h - 17); ctx.lineTo(4, -h - 6); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(6, -h - 3); ctx.lineTo(15, -h - 17); ctx.lineTo(12, -h - 4); ctx.fill();
+        }
+      }
+
+      // Arm & Fist
+      ctx.strokeStyle = bodyCol;
+      ctx.lineWidth = ent.isBoss ? 11 : ent.isHeavy ? 8.5 : 6;
+      ctx.beginPath(); ctx.moveTo(4, -h + 25);
+      if (upperExt > 0) ctx.lineTo(16, -h - 16);
+      else if (punchExt > 0) ctx.lineTo((ent.isBoss ? 44 : 34) * punchExt, -h + 25);
+      else if (ent.state === 'charge') ctx.lineTo(-12, -h + 28);
+      else if (ent.state === 'parry') ctx.lineTo(16, -h + 18);
+      else ctx.lineTo(15, -h + 32);
+      ctx.stroke();
+
+      if (!overrideColor) {
+        let fx = 15, fy = -h + 32, fr = ent.isBoss ? 9 : 4.8;
+        if (upperExt > 0) { fx = 16; fy = -h - 17; fr = 7; }
+        else if (punchExt > 0) { fx = (ent.isBoss ? 46 : 36) * punchExt; fy = -h + 25; fr = ent.isBoss ? 11 : punchExt > 1.2 ? 9.5 : 6.5; }
+        else if (ent.state === 'charge') { fx = -13; fy = -h + 28; fr = kHoldTime >= 0.33 ? 8.5 : 6; }
+        ctx.fillStyle = ent.state === 'charge' && kHoldTime >= 0.33 ? '#facc15' : accentCol;
+        ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Player Active Parry Golden Shield Arc
+      if (isPlayer && !overrideColor && ent.state === 'parry') {
+        ctx.strokeStyle = '#facc15'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(10, -34, 26, -1.1, 1.1); ctx.stroke();
+      }
+
+      // Enemy Windup Warning
+      if (!isPlayer && !overrideColor && ent.state === 'windup') {
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3;
+        const pulse = 11 + Math.sin(ent.animTime * 45) * 4.5;
+        ctx.beginPath(); ctx.arc(16, -h + 24, pulse, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      // Enemy Shield
+      if (!isPlayer && !overrideColor && ent.hasShield) {
+        ctx.fillStyle = pal.shieldFill; ctx.strokeStyle = pal.shieldStroke; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.roundRect(14, -h + 10, 10, h - 16, 4); ctx.fill(); ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // Player Headband tail
+      if (isPlayer && !overrideColor) {
+        ctx.save(); ctx.strokeStyle = pal.playerBand; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(ent.bandPoints[0].x, ent.bandPoints[0].y);
+        for (let i = 1; i < ent.bandPoints.length; i++) ctx.lineTo(ent.bandPoints[i].x, ent.bandPoints[i].y);
+        ctx.stroke(); ctx.restore();
+      }
+
+      // Non-boss HP bar
+      if (!isPlayer && !overrideColor && ent.state !== 'dead' && !ent.isBoss) {
+        const bw = 42, bh = 5, bx = ent.x - bw / 2, by = ent.y - ent.h - 15;
+        if (ent.type !== 'dummy') {
+          ctx.fillStyle = pal.hpBg; ctx.fillRect(bx, by, bw, bh);
+          ctx.fillStyle = ent.state === 'stunned' ? '#facc15' : '#ef4444';
+          ctx.fillRect(bx, by, bw * (ent.hp / ent.maxHp), bh);
+        } else {
+          ctx.font = '600 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = pal.hudSub;
+          ctx.fillText(ent.label, ent.x, by + 2);
+        }
+        if (ent.state === 'stunned') {
+          ctx.font = '700 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#facc15';
+          ctx.fillText('破防眩晕!', ent.x, by - 5);
+        }
+      }
+    }
+
+    function drawPropsAndPickups(pal) {
+      for (const p of props) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.scale(p.scaleX, p.scaleY);
+        if (p.kind === 'barrel') {
+          ctx.fillStyle = p.flashTimer > 0 ? '#ffffff' : '#dc2626';
+          ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.roundRect(-15, -42, 30, 42, 5); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#facc15'; ctx.fillRect(-14, -28, 28, 6);
+          ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fef08a';
+          ctx.fillText('爆', 0, -10);
+        } else {
+          ctx.fillStyle = p.flashTimer > 0 ? '#ffffff' : '#b45309';
+          ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.roundRect(-16, -34, 32, 34, 3); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-14, -32); ctx.lineTo(14, -2); ctx.moveTo(14, -32); ctx.lineTo(-14, -2); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      for (const pk of pickups) {
+        const bob = Math.sin(pk.anim * 7) * 4;
+        ctx.save();
+        ctx.translate(pk.x, pk.y - 14 + bob);
+        ctx.fillStyle = pk.kind === 'heal' ? '#22c55e' : '#facc15';
+        ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#0f172a';
+        ctx.fillText(pk.kind === 'heal' ? '+' : '气', 0, 4);
+        ctx.restore();
+      }
+
+      // Projectiles (Shuriken)
+      for (const pr of projectiles) {
+        ctx.save();
+        ctx.translate(pr.x, pr.y); ctx.rotate(pr.rot);
+        ctx.fillStyle = pr.friendly ? '#38bdf8' : '#e879f9';
+        for (let k = 0; k < 4; k++) {
+          ctx.rotate(Math.PI / 2);
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(13, -3); ctx.lineTo(4, 3); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Boss Ground Shockwaves
+      for (const s of shockwaves) {
+        ctx.save();
+        ctx.fillStyle = '#ef4444'; ctx.globalAlpha = s.life / s.maxLife;
+        ctx.beginPath();
+        ctx.moveTo(s.x - 16, GROUND_Y); ctx.lineTo(s.x, GROUND_Y - 26); ctx.lineTo(s.x + 16, GROUND_Y);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawHUDInCanvas(pal) {
+      ctx.save();
+      // Player HP Bar
+      ctx.fillStyle = pal.hudSub; ctx.font = '700 11px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('HP', 16, 20);
+      ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(38, 11, 146, 9, 4); ctx.fill();
+      ctx.fillStyle = player.hp > player.maxHp * 0.3 ? '#22c55e' : '#ef4444';
+      ctx.beginPath(); ctx.roundRect(38, 11, 146 * (player.hp / player.maxHp), 9, 4); ctx.fill();
+
+      // Player SP (Stamina) Bar
+      ctx.fillStyle = pal.hudSub; ctx.fillText('SP', 16, 34);
+      ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(38, 25, 146, 8, 4); ctx.fill();
+      const spLow = player.exhaustedTimer > 0 || player.sp < player.maxSp * 0.25;
+      ctx.fillStyle = player.exhaustedTimer > 0
+        ? (Math.floor(performance.now() / 110) % 2 ? '#ef4444' : '#fca5a5')
+        : (spLow ? '#f59e0b' : '#10b981');
+      ctx.beginPath(); ctx.roundRect(38, 25, 146 * (player.sp / player.maxSp), 8, 4); ctx.fill();
+      if (player.exhaustedTimer > 0) {
+        ctx.font = '800 10.5px sans-serif'; ctx.fillStyle = '#ef4444';
+        ctx.fillText('力竭喘息!', 190, 33);
+      }
+
+      // Player EX Super Bar
+      ctx.fillStyle = pal.hudSub; ctx.font = '700 11px sans-serif'; ctx.fillText('EX', 16, 48);
+      ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(38, 39, 146, 8, 4); ctx.fill();
+      const exFull = player.ex >= player.maxEx;
+      ctx.fillStyle = exFull ? (Math.floor(performance.now() / 120) % 2 ? '#facc15' : '#f97316') : '#38bdf8';
+      ctx.beginPath(); ctx.roundRect(38, 39, 146 * (player.ex / player.maxEx), 8, 4); ctx.fill();
+      if (exFull) {
+        ctx.font = '800 11px sans-serif'; ctx.fillStyle = '#facc15';
+        ctx.fillText('按 U 放必杀!', 190, 47);
+      }
+
+      // Boss Bar (Top Center)
+      const boss = enemies.find(e => e.isBoss && e.state !== 'dead');
+      if (boss) {
+        const bw = 340, bx = (W - bw) / 2;
+        ctx.textAlign = 'center'; ctx.font = '800 12px sans-serif'; ctx.fillStyle = '#ef4444';
+        ctx.fillText(boss.label, W / 2, 20);
+        ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(bx, 25, bw, 11, 5); ctx.fill();
+        ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.roundRect(bx, 25, bw * (boss.hp / boss.maxHp), 11, 5); ctx.fill();
+        // Posture bar
+        ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(bx + 30, 39, bw - 60, 5, 3); ctx.fill();
+        ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.roundRect(bx + 30, 39, (bw - 60) * (boss.posture / boss.maxPosture), 5, 3); ctx.fill();
+      }
+
+      // Charge Gauge over player
+      if (kHolding && kHoldTime > 0.08) {
+        const pct = Math.min(1, kHoldTime / 0.33);
+        ctx.fillStyle = pal.hpBg; ctx.fillRect(player.x - 24, player.y - 84, 48, 6);
+        ctx.fillStyle = pct >= 1 ? '#facc15' : '#fb923c'; ctx.fillRect(player.x - 24, player.y - 84, 48 * pct, 6);
+      }
+
+      // Combo Counter
+      if (comboCount > 0) {
+        const rank = comboCount >= 20 ? 'SSS' : comboCount >= 14 ? 'SS' : comboCount >= 9 ? 'S' : comboCount >= 6 ? 'A' : comboCount >= 3 ? 'B' : 'C';
+        const rankCol = comboCount >= 14 ? '#facc15' : comboCount >= 6 ? '#fb923c' : '#38bdf8';
+        ctx.save(); ctx.translate(W - 22, 48); ctx.scale(comboScale, comboScale);
+        ctx.textAlign = 'right'; ctx.font = '900 30px sans-serif'; ctx.fillStyle = rankCol;
+        ctx.fillText(`${comboCount} HIT`, 0, 0);
+        ctx.font = '800 13px sans-serif'; ctx.fillStyle = pal.hudText;
+        ctx.fillText(`RANK ${rank}`, 0, 18); ctx.restore();
+      }
+
+      // Speed Lines
+      if (speedLineAlpha > 0.02 && feel.shake) {
+        ctx.save(); ctx.globalAlpha = speedLineAlpha; ctx.strokeStyle = pal.speedLine; ctx.lineWidth = 2;
+        for (let i = 0; i < 18; i++) {
+          const ang = (i / 18) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(W / 2 + Math.cos(ang) * 280, H / 2 + Math.sin(ang) * 140);
+          ctx.lineTo(W / 2 + Math.cos(ang) * 530, H / 2 + Math.sin(ang) * 265);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Banner
+      if (bannerTimer > 0 && upgradeChoices.length === 0 && !gameOver) {
+        ctx.save(); ctx.globalAlpha = Math.min(1, bannerTimer * 1.8); ctx.textAlign = 'center';
+        ctx.font = '900 23px sans-serif'; ctx.fillStyle = pal.hudText; ctx.fillText(bannerText, W / 2, 84);
+        if (bannerSub) { ctx.font = '600 12px sans-serif'; ctx.fillStyle = pal.hudSub; ctx.fillText(bannerSub, W / 2, 104); }
+        ctx.restore();
+      }
+
+      // Roguelike 3-Choice Upgrade Cards + Wave Score Breakdown Overlay
+      if (upgradeChoices.length > 0) {
+        ctx.fillStyle = 'rgba(7, 10, 18, 0.8)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.textAlign = 'center'; ctx.font = '900 20px sans-serif'; ctx.fillStyle = '#facc15';
+        ctx.fillText(`WAVE ${wave} 清场结算！选择一项强化（点击卡片或按 1 / 2 / 3）`, W / 2, 36);
+
+        if (runStats.waveBonus) {
+          const wb = runStats.waveBonus;
+          ctx.font = '600 12px monospace'; ctx.fillStyle = '#cbd5e1';
+          const parts = [`清场 +${wb.clearBonus}`, `血量 +${wb.hpBonus}`];
+          if (wb.noHitBonus > 0) parts.push(`无伤完美 +${wb.noHitBonus}`);
+          if (wb.comboBonus > 0) parts.push(`最高连击 +${wb.comboBonus}`);
+          parts.push(`本波共计 +${wb.totalAdd} 分`);
+          ctx.fillText(parts.join('  ·  '), W / 2, 60);
+        }
+
+        const cw = 248, ch = 186, gap = 26, startX = (W - (cw * 3 + gap * 2)) / 2, y = 84;
+        upgradeChoices.forEach((u, idx) => {
+          const x = startX + idx * (cw + gap);
+          const hov = hoveredCard === idx;
+          ctx.save();
+          ctx.fillStyle = hov ? '#1e293b' : '#0f172a';
+          ctx.strokeStyle = hov ? '#facc15' : u.color;
+          ctx.lineWidth = hov ? 3.5 : 2;
+          ctx.beginPath(); ctx.roundRect(x, y - (hov ? 6 : 0), cw, ch, 12); ctx.fill(); ctx.stroke();
+
+          ctx.font = '700 12px monospace'; ctx.fillStyle = '#94a3b8';
+          ctx.fillText(`按 [${idx + 1}] 选择`, x + cw / 2, y + 24 - (hov ? 6 : 0));
+          ctx.font = '32px sans-serif';
+          ctx.fillText(u.icon, x + cw / 2, y + 70 - (hov ? 6 : 0));
+          ctx.font = '800 17px sans-serif'; ctx.fillStyle = '#f8fafc';
+          ctx.fillText(u.name, x + cw / 2, y + 102 - (hov ? 6 : 0));
+
+          ctx.font = '500 12.5px sans-serif'; ctx.fillStyle = '#cbd5e1';
+          const mid = Math.ceil(u.desc.length / 2);
+          ctx.fillText(u.desc.slice(0, mid), x + cw / 2, y + 134 - (hov ? 6 : 0));
+          ctx.fillText(u.desc.slice(mid), x + cw / 2, y + 154 - (hov ? 6 : 0));
+          ctx.restore();
+        });
+      }
+
+      // Game Over Arcade Settlement Screen
+      if (gameOver && settlement) {
+        const s = settlement;
+        ctx.fillStyle = 'rgba(6, 9, 16, 0.84)';
+        ctx.fillRect(0, 0, W, H);
+
+        const px = 140, py = 26, pw = W - 280, ph = H - 52;
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#fb923c';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 14); ctx.fill(); ctx.stroke();
+
+        ctx.textAlign = 'left';
+        ctx.font = '900 22px sans-serif'; ctx.fillStyle = '#f8fafc';
+        ctx.fillText('战斗结算 · BATTLE RESULT', px + 28, py + 38);
+
+        if (s.isNewRecord) {
+          ctx.fillStyle = '#facc15';
+          ctx.font = '800 12px monospace';
+          ctx.fillText('★ NEW HIGH SCORE!', px + 300, py + 36);
+        }
+
+        // Breakdown rows
+        const rows = [
+          [`基础战斗分`, `${s.combatScore}`],
+          [`抵达波次 (WAVE ${s.wave})`, `+${s.waveBonus}`],
+          [`击杀敌人 (${s.kills} 名)`, `+${s.killBonus}`],
+          [`最高连击 (${s.maxCombo} HIT)`, `+${s.comboBonus}`],
+          [`弹反 / 破盾技巧 (${s.techCount} 次)`, `+${s.techBonus}`],
+        ];
+        let ry = py + 74;
+        rows.forEach(([label, val]) => {
+          ctx.font = '500 13.5px sans-serif'; ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'left';
+          ctx.fillText(label, px + 30, ry);
+          ctx.font = '700 14px monospace'; ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'right';
+          ctx.fillText(val, px + 390, ry);
+          ry += 28;
+        });
+
+        // Divider & Total
+        ctx.strokeStyle = 'rgba(148,163,184,0.28)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px + 28, ry - 8); ctx.lineTo(px + 392, ry - 8); ctx.stroke();
+        ctx.font = '800 16px sans-serif'; ctx.fillStyle = '#facc15'; ctx.textAlign = 'left';
+        ctx.fillText('最终总积分', px + 30, ry + 18);
+        ctx.font = '900 24px monospace'; ctx.textAlign = 'right';
+        ctx.fillText(`${s.totalScore}`, px + 390, ry + 20);
+
+        // Giant Rank Stamp on right
+        const rx = px + pw - 118, ryCenter = py + 132;
+        ctx.save();
+        ctx.translate(rx, ryCenter);
+        ctx.rotate(-0.12);
+        ctx.strokeStyle = s.rank.startsWith('S') ? '#facc15' : '#fb923c';
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0, 0, 56, 0, Math.PI * 2); ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.font = '700 11px monospace'; ctx.fillStyle = '#94a3b8';
+        ctx.fillText('EVALUATION', 0, -24);
+        ctx.font = '900 44px sans-serif'; ctx.fillStyle = s.rank.startsWith('S') ? '#facc15' : '#fb923c';
+        ctx.fillText(s.rank, 0, 20);
+        ctx.restore();
+
+        // Retry button
+        const bx = px + pw / 2 - 115, by = py + ph - 48, bw = 230, bh = 34;
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 8); ctx.fill();
+        ctx.textAlign = 'center'; ctx.font = '800 14px sans-serif'; ctx.fillStyle = '#0f172a';
+        ctx.fillText('点击或按 R / Enter 再来一局', W / 2, by + 22);
+      }
+      ctx.restore();
+    }
+
+    function render() {
+      const biome = getBiome(wave);
+      const pal = getPalette(biome);
+      ctx.save();
+      ctx.scale(canvas.width / W, canvas.height / H);
+
+      ctx.save();
+      ctx.translate(W / 2 + camShakeX, H / 2 + camShakeY);
+      ctx.scale(camZoom, camZoom);
+      ctx.translate(-W / 2, -H / 2);
+
+      drawStage(pal, biome);
+      drawPropsAndPickups(pal);
+
+      for (const a of afterimages) drawFighter(a, true, pal, a.color, (a.life / a.maxLife) * 0.34);
+      for (const e of enemies) drawFighter(e, false, pal, null, e.deadAlpha);
+      drawFighter(player, true, pal);
+
+      // Arcs
+      for (const a of arcs) {
+        const t = a.life / a.maxLife;
+        ctx.save(); ctx.translate(a.x, a.y); ctx.scale(a.dir, 1); ctx.globalAlpha = t * 0.92;
+        ctx.strokeStyle = a.color; ctx.fillStyle = a.color;
+        if (a.arcType === 'thrust' || a.arcType === 'mega') {
+          const len = a.arcType === 'mega' ? 92 : 46, th = a.arcType === 'mega' ? 19 * t : 8 * t;
+          ctx.beginPath(); ctx.moveTo(-10, -th); ctx.lineTo(len, 0); ctx.lineTo(-10, th); ctx.closePath(); ctx.fill();
+        } else if (a.arcType === 'upper') {
+          ctx.lineWidth = 10 * t; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.arc(-8, 4, 48, 0.35, -1.55, true); ctx.stroke();
+        } else {
+          ctx.lineWidth = (a.arcType === 'kick' ? 12 : 8) * t; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.arc(-10, 0, a.arcType === 'kick' ? 54 : 40, -0.9, 0.95); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Lightnings
+      for (const l of lightnings) {
+        ctx.save(); ctx.globalAlpha = l.life / l.maxLife;
+        ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(l.pts[0].x, l.pts[0].y);
+        for (let i = 1; i < l.pts.length; i++) ctx.lineTo(l.pts[i].x, l.pts[i].y);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.restore();
+      }
+
+      // Rings
+      for (const r of rings) {
+        const t = r.life / r.maxLife;
+        ctx.save(); ctx.globalAlpha = t; ctx.strokeStyle = r.color; ctx.lineWidth = r.lineWidth * t;
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      }
+
+      // Particles
+      for (const p of particles) {
+        const t = p.life / p.maxLife;
+        ctx.save(); ctx.globalAlpha = Math.min(1, t * 1.4); ctx.fillStyle = p.color;
+        if (p.kind === 'spark') {
+          ctx.strokeStyle = p.color; ctx.lineWidth = p.size * 0.7; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.028, p.y - p.vy * 0.028); ctx.stroke();
+        } else if (p.kind === 'shard') {
+          ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+          ctx.beginPath(); ctx.moveTo(-p.size, -p.size * 0.5); ctx.lineTo(p.size, 0); ctx.lineTo(-p.size * 0.3, p.size * 0.8); ctx.closePath(); ctx.fill();
+        } else {
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1.2 - t * 0.4), 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Floating Texts
+      for (const f of floatTexts) {
+        const t = f.life / f.maxLife;
+        ctx.save(); ctx.globalAlpha = Math.min(1, t * 1.8);
+        ctx.font = `900 ${Math.round(16 * f.scale)}px sans-serif`; ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(0,0,0,0.65)'; ctx.lineWidth = 3.5; ctx.strokeText(f.text, f.x, f.y);
+        ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y); ctx.restore();
+      }
+
+      ctx.restore();
+      drawHUDInCanvas(pal);
+      ctx.restore();
+    }
+
+    // ==================== Input & Canvas Card Picking ====================
+    function canvasLogicalPos(e) {
+      const r = canvas.getBoundingClientRect();
+      return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H };
+    }
+
+    function cardIndexAt(px, py) {
+      if (upgradeChoices.length === 0) return -1;
+      const cw = 248, ch = 186, gap = 26, startX = (W - (cw * 3 + gap * 2)) / 2, y = 86;
+      for (let i = 0; i < 3; i++) {
+        const x = startX + i * (cw + gap);
+        if (px >= x && px <= x + cw && py >= y - 6 && py <= y + ch) return i;
+      }
+      return -1;
+    }
+
+    function startAndFocus() {
+      initAudio();
+      if (!started) {
+        started = true;
+        startOverlay.style.opacity = '0';
+        setTimeout(() => startOverlay.classList.add('hidden'), 200);
+      }
+      canvas.focus();
+      focusHint.classList.add('hidden');
+    }
+
+    startOverlay.addEventListener('pointerdown', startAndFocus);
+    canvas.addEventListener('pointermove', (e) => {
+      if (upgradeChoices.length === 0) return;
+      const pos = canvasLogicalPos(e);
+      hoveredCard = cardIndexAt(pos.x, pos.y);
+      canvas.style.cursor = hoveredCard >= 0 ? 'pointer' : 'crosshair';
+    });
+    canvas.addEventListener('pointerdown', (e) => {
+      startAndFocus();
+      if (gameOver) {
+        hudBest.textContent = `BEST ${bestScore}`; document.getElementById("btn-theme").addEventListener("click", () => { document.documentElement.classList.toggle("light"); window.dispatchEvent(new Event("themechange")); }); resetGame(false);
+        return;
+      }
+      if (upgradeChoices.length > 0) {
+        const pos = canvasLogicalPos(e);
+        const idx = cardIndexAt(pos.x, pos.y);
+        if (idx >= 0) { selectUpgrade(idx); canvas.style.cursor = 'crosshair'; }
+      }
+    });
+    canvas.addEventListener('blur', () => { if (started) focusHint.classList.remove('hidden'); });
+    canvas.addEventListener('focus', () => focusHint.classList.add('hidden'));
+
+    function pressJ() { initAudio(); if (canActNow()) triggerLightAttack(); else inputBuffer = { type: 'J', time: performance.now() }; }
+    function downK() {
+      initAudio();
+      if (!player.onGround) { if (canActNow()) startAttack('airSlam'); else inputBuffer = { type: 'K_TAP', time: performance.now() }; return; }
+      if (!kHolding) { kHolding = true; kHoldTime = 0; kChargeNotified = false; }
+    }
+    function upK() {
+      if (!kHolding) return;
+      const held = kHoldTime; kHolding = false; kHoldTime = 0; kChargeNotified = false;
+      if (player.state === 'charge') player.state = 'idle';
+      if (held >= 0.32 && player.onGround) startAttack('chargePunch');
+      else { if (canActNow()) startAttack(player.onGround ? 'uppercut' : 'airSlam'); else inputBuffer = { type: 'K_TAP', time: performance.now() }; }
+    }
+    function pressJump() {
+      initAudio();
+      if (player.state === 'hurt' || player.state === 'dash' || player.state === 'super') return;
+      if (player.onGround || player.airJumps > 0) {
+        if (!player.onGround) player.airJumps--;
+        player.vy = -595; player.onGround = false;
+        if (player.state === 'charge') { kHolding = false; player.state = 'idle'; }
+        applySquash(player, 0.78, 1.28); addDust(player.x, player.y, 6, 0); sfx.whoosh(1.3);
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (!started) return;
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+      if (gameOver) {
+        if (e.code === 'KeyR' || e.code === 'Enter' || e.code === 'Space') resetGame(false);
+        return;
+      }
+      if (upgradeChoices.length > 0) {
+        if (e.code === 'Digit1') selectUpgrade(0);
+        else if (e.code === 'Digit2') selectUpgrade(1);
+        else if (e.code === 'Digit3') selectUpgrade(2);
+        return;
+      }
+      if (keys[e.code]) return;
+      keys[e.code] = true;
+      if (e.code === 'KeyW' || e.code === 'Space' || e.code === 'ArrowUp') pressJump();
+      else if (e.code === 'KeyJ') pressJ();
+      else if (e.code === 'KeyK') downK();
+      else if (e.code === 'KeyL' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') { initAudio(); triggerDash(); }
+      else if (e.code === 'KeyI') { initAudio(); if (canActNow()) triggerParry(); else inputBuffer = { type: 'I', time: performance.now() }; }
+      else if (e.code === 'KeyU') { initAudio(); triggerSuper(); }
+    });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'KeyK') upK(); });
+
+    // Action buttons
+    document.getElementById('act-j').addEventListener('pointerdown', (e) => { e.preventDefault(); startAndFocus(); pressJ(); });
+    const actK = document.getElementById('act-k');
+    actK.addEventListener('pointerdown', (e) => { e.preventDefault(); startAndFocus(); downK(); });
+    actK.addEventListener('pointerup', upK);
+    actK.addEventListener('pointerleave', () => { if (kHolding) upK(); });
+    document.getElementById('act-i').addEventListener('pointerdown', (e) => { e.preventDefault(); startAndFocus(); triggerParry(); });
+    document.getElementById('act-u').addEventListener('pointerdown', (e) => { e.preventDefault(); startAndFocus(); triggerSuper(); });
+
+    btnMode.addEventListener('click', () => {
+      mode = mode === 'waves' ? 'dummy' : 'waves';
+      btnMode.textContent = mode === 'waves' ? '木桩训练' : '闯关模式';
+      resetGame(false); startAndFocus();
+    });
+    btnBoss.addEventListener('click', () => { resetGame(true); startAndFocus(); });
+    btnReset.addEventListener('click', () => { resetGame(false); startAndFocus(); });
+
+    document.querySelectorAll('.toggle-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.feel;
+        feel[key] = !feel[key];
+        btn.dataset.on = String(feel[key]);
+        if (started) canvas.focus();
+      });
+    });
+
+    resetGame(false);
+    if (document.documentElement.classList.contains('in-station')) {
+      window.addEventListener('blur', () => {
+        for (const code of Object.keys(keys)) keys[code] = false;
+        kHolding = false;
+        kHoldTime = 0;
+        kChargeNotified = false;
+        if (player.state === 'charge') player.state = 'idle';
+      });
+      startAndFocus();
+      parent.postMessage({type:'cartridge-ready', id:'iron-impact'}, location.origin);
+    }
+    let lastTs = performance.now();
+    function loop(ts) {
+      const dt = (ts - lastTs) / 1000;
+      lastTs = ts;
+      update(dt);
+      render();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>

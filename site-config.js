@@ -13,6 +13,6 @@ window.SITE = {
     android: '',
     standby: 'media/demo/monster-paradise-intro.webp',
   },
-  about: '这里收藏了我用 Godot 制作的游戏。选中《怪兽仙境》的卡带，按 START 就能试玩。',
+  about: '选一张卡带，按 START。这里收着我的怪兽冒险《怪兽仙境》和街机格斗《铁拳破阵》。',
   email: '',
 };

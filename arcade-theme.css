@@ -1,0 +1,152 @@
+.fight-marquee {display:none}
+
+/* The second cartridge borrows the rain alley's blue steel and the game's orange accent. */
+html[data-theme="iron"] {
+  --paper:#172435; --ink:#f4ebdb; --lime:#ff9244; --orange:#62d7ef; --line:#778697;
+  background:#172435; color-scheme:dark;
+}
+[data-theme="iron"] body {
+  background-color:var(--paper);
+  background-image:radial-gradient(ellipse at 36% 12%,#2f4156 0,transparent 62%),
+    repeating-linear-gradient(0deg,#ffffff03 0 1px,transparent 1px 4px);
+}
+[data-theme="iron"] .top, [data-theme="iron"] .trial-section,
+[data-theme="iron"] .game-note, [data-theme="iron"] footer {border-color:#6b7a88}
+[data-theme="iron"] .divider::after {background:#768794}
+[data-theme="iron"] .edition-note, [data-theme="iron"] .cart-tools, [data-theme="iron"] footer,
+[data-theme="iron"] #platform-status {color:#d2d9dd}
+[data-theme="iron"] .cart-tools button {text-decoration-color:#87949d}
+[data-theme="iron"] .launch-key {background:#341c17;border-color:#e88751;box-shadow:0 3px 0 #0a111b}
+[data-theme="iron"] .launch-cap {
+  background:linear-gradient(#ffd08b,#ffa24d 58%,#ee7135);border-color:#e98b48;
+  color:#291a16;box-shadow:inset 0 1px #ffe9c2,inset 0 -2px #bc592c;
+}
+[data-theme="iron"] .rack-title {color:#171913}
+[data-theme="iron"] .rack-key[data-mode="slot-2"] .keycap img {filter:sepia(.95) saturate(4) hue-rotate(342deg) brightness(1.04)}
+[data-theme="iron"] .rack-key[aria-pressed=true] .keycap::after {background:#ff903c;box-shadow:0 0 4px #ff903c}
+[data-theme="iron"] .cart-front > img, [data-theme="iron"] .cart-back,
+[data-theme="iron"] .cart-side {filter:hue-rotate(-42deg) saturate(1.12)}
+[data-theme="iron"] .cart-lamination {background-color:#c07522;background-blend-mode:luminosity}
+[data-theme="iron"] .cast-shadow {filter:brightness(0) blur(2px) opacity(.45)}
+[data-theme="iron"] .cart-front .trial-sticker img {object-position:58% center}
+[data-theme="iron"] .deck > .chassis, [data-theme="iron"] .rack > .chassis {filter:saturate(.75) brightness(.86)}
+[data-theme="iron"] .viewer, [data-theme="iron"] .about {background:#1c2a3a;color:var(--ink);border-color:#8092a0}
+[data-theme="iron"] .viewer-copy p, [data-theme="iron"] .viewer-copy small {color:#d4dce0}
+[data-theme="iron"] :is(.viewer-close,.about .icon-key,.viewer .action,.concept-print a > span) {background:#e3dccd;color:#242221}
+[data-theme="iron"] .viewer .action[aria-pressed=true] {background:var(--lime)}
+[data-theme="iron"] :is(.concept-print figcaption,.note-heading p,.viewer-foot) {color:#c8d5dd}
+[data-theme="iron"] :focus-visible {outline-color:#65dcea}
+
+/* The arcade cartridge uses a wide CRT and a separate six-button fighting deck. */
+[data-controller="arcade"] .dock-stage {
+  --case-edge:#111820; --key-size:clamp(47px,5.5vw,72px);
+  position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:0;
+  width:100%;max-width:960px;aspect-ratio:auto;overflow:visible;
+  padding:clamp(10px,2.2%,22px);border:2px solid var(--case-edge);border-radius:17px 17px 26px 26px;
+  background:linear-gradient(112deg,#55616a 0%,#222d39 7%,#354350 49%,#24303c 92%,#465560);
+  box-shadow:inset 0 2px 1px #92a0a7,inset 2px 0 1px #788a93,inset -2px -5px 2px #121922,0 7px 0 #10151d;
+  filter:drop-shadow(0 9px 10px #080e1759);
+}
+[data-controller="arcade"] .dock-chassis {display:none}
+[data-controller="arcade"] .fight-marquee {
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:0 1% clamp(7px,1.2vw,13px);color:#e7e2d8;font:900 clamp(14px,2.4vw,28px)/1 Arial,sans-serif;
+  letter-spacing:-.055em;
+}
+.fight-marquee b {transform:skewX(-10deg)}
+.fight-marquee em {font-style:normal;color:#ff984f}
+.fight-marquee i {flex:1;height:5px;background:linear-gradient(90deg,#65d3db 0 13%,#18232e 13%);box-shadow:0 1px #65717c}
+.fight-marquee i:last-child {transform:scaleX(-1)}
+[data-controller="arcade"] .screen-viewport {
+  position:relative;inset:auto;width:100%;height:auto;aspect-ratio:920/350;grid-area:auto;
+  border:clamp(4px,.75vw,9px) solid #10161d;border-radius:9px;background:#090d16;
+  box-shadow:0 1px #74838f,0 -2px #131c25;
+}
+[data-controller="arcade"] .screen-viewport::after {opacity:.6}
+[data-controller="arcade"] .screen-viewport:has(.game-frame)::before {
+  content:"";position:absolute;inset:0;z-index:6;pointer-events:none;
+  background:linear-gradient(0deg,transparent 37%,#88ecfb85 49%,#d5fbff 50%,transparent 55%);
+  animation:arcade-power-on .32s ease-out both;
+}
+@keyframes arcade-power-on {
+  from {transform:translateY(-50%);opacity:.85}
+  to {transform:translateY(50%);opacity:0}
+}
+[data-controller="arcade"] .tv-power::after {background:linear-gradient(0deg,#0b1625f2,transparent 80%)}
+[data-controller="arcade"] .tv-power img {object-fit:cover}
+[data-controller="arcade"] .standby-copy small {color:#ffc18a}
+[data-controller="arcade"] .pad-controls {
+  grid-area:auto;align-self:auto;position:relative;display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;
+  margin:clamp(6px,1vw,12px) 0 0;padding:clamp(12px,2.3vw,23px) clamp(9px,4vw,48px);
+  border:1px solid #101923;border-radius:6px 6px 15px 15px;
+  background:repeating-linear-gradient(-38deg,#ffffff03 0 1px,transparent 1px 4px),linear-gradient(145deg,#44505c,#303a45 58%,#26313c);
+  box-shadow:inset 0 2px #6f7b84,inset 0 -3px #1b252e,0 2px #141c24;
+}
+[data-controller="arcade"] .pad-controls::before, [data-controller="arcade"] .pad-controls::after {
+  content:"";position:absolute;top:5px;width:6px;height:6px;border-radius:100%;
+  background:linear-gradient(135deg,#818892 40%,#212a32 41% 57%,#737c86 58%);box-shadow:0 1px #10151c;
+}
+[data-controller="arcade"] .pad-controls::before {left:6px}
+[data-controller="arcade"] .pad-controls::after {right:6px}
+[data-controller="arcade"] .pad-dpad-zone {
+  position:static;grid-area:1/1;display:grid;grid-template:1fr / repeat(2,var(--key-size));
+  gap:4px;width:auto;height:auto;
+}
+[data-controller="arcade"] .pad-actions {display:contents}
+[data-controller="arcade"] .pad-hit {
+  position:static;inset:auto;grid-area:auto;align-self:center;justify-self:center;display:grid;place-content:center;
+  width:var(--key-size);height:var(--key-size);min-width:44px;min-height:44px;max-width:none;margin:0;padding:0;
+  border:2px solid #151b22;border-radius:50%;background:linear-gradient(145deg,var(--cap-top),var(--cap-bottom) 88%);
+  color:#171a1e;font:900 clamp(13px,1.5vw,19px)/1.15 "Microsoft YaHei",sans-serif;
+  box-shadow:inset 0 2px 1px #ffffff9c,inset 0 -4px 1px #0003,0 3px 0 2px #141c23,0 5px 4px #080d134d;
+  --cap-top:#ffd296;--cap-bottom:#e77935;
+}
+[data-controller="arcade"] .pad-hit > span {display:block}
+[data-controller="arcade"] .pad-hit:active {transform:translateY(2px);box-shadow:inset 0 2px 4px #0004,0 1px 0 1px #131921}
+[data-controller="arcade"] .pad-dpad-zone .pad-hit {border-radius:10px;color:#d6edef;--cap-top:#657784;--cap-bottom:#344654}
+[data-controller="arcade"] .hit-start {
+  grid-area:1/2;width:clamp(48px,7vw,80px);height:44px;border-radius:16px;font:800 12px/1 var(--mono);
+  --cap-top:#e2e6dc;--cap-bottom:#a1aea9;
+}
+[data-controller="arcade"] .fight-actions {
+  grid-area:1/3;display:grid;grid-template-columns:repeat(3,var(--key-size));gap:8px;
+}
+.fight-actions {display:contents}
+[data-controller="arcade"] :is(.hit-jump,.hit-parry,.hit-dash) {--cap-top:#bcecf2;--cap-bottom:#67b1c7}
+[data-controller="arcade"] .hit-super {--cap-top:#ffcf7a;--cap-bottom:#ee5e41}
+[data-controller="arcade"] .fight-actions .pad-hit::before {content:attr(data-key);font:750 9px/1 var(--mono);color:#443428}
+[data-controller="arcade"] .hit-b::after {content:"长按蓄力";font:650 9px/1.3 sans-serif;pointer-events:none}
+[data-controller="arcade"] .dock-stage .pad-hit[hidden] {display:none}
+@media(max-width:760px), (pointer:coarse) and (max-width:1024px) {
+  [data-controller="arcade"] .dock-stage {--key-size:clamp(44px,10vw,56px)}
+  [data-controller="arcade"] .pad-controls {padding:12px 6px 14px;gap:4px}
+  [data-controller="arcade"] .fight-actions {gap:7px 3px}
+  [data-controller="arcade"] .pad-dpad-zone {gap:2px}
+  [data-controller="arcade"] #screen-size {background:#354455;color:#f4e7d4;border-color:#7d8993;box-shadow:inset 0 1px #697683}
+}
+@media(max-width:360px) {
+  [data-controller="arcade"] .pad-controls {grid-template-columns:auto 1fr auto;row-gap:7px}
+  [data-controller="arcade"] .hit-start {grid-area:1/1}
+  [data-controller="arcade"] .pad-dpad-zone {grid-area:2/1}
+  [data-controller="arcade"] .fight-actions {grid-area:1/3/3/4}
+}
+.play-expanded [data-controller="arcade"] .dock-stage {padding:0;gap:10px;background:none;border:0;box-shadow:none;filter:none}
+.play-expanded [data-controller="arcade"] .fight-marquee {display:none}
+.play-expanded [data-controller="arcade"] .screen-viewport {border-width:2px}
+.play-expanded [data-controller="arcade"] .pad-controls {width:min(100%,640px);margin:0}
+[data-theme="iron"] .play-expanded main {background:radial-gradient(ellipse at center,#2c4051,#0c141e 75%)}
+@media(orientation:landscape) and (max-height:560px) {
+  .play-expanded [data-controller="arcade"] .dock-stage {--key-size:44px;grid-template-columns:92px minmax(0,1fr) 140px;align-items:center}
+  .play-expanded [data-controller="arcade"] .screen-viewport {grid-area:1/2}
+  .play-expanded [data-controller="arcade"] .pad-controls, .play-expanded [data-controller="arcade"] .pad-actions {display:contents}
+  .play-expanded [data-controller="arcade"] .pad-controls::before,.play-expanded [data-controller="arcade"] .pad-controls::after {display:none}
+  .play-expanded [data-controller="arcade"] .pad-dpad-zone {grid-area:1/1;align-self:end}
+  .play-expanded [data-controller="arcade"] .hit-start {grid-area:1/1;align-self:start}
+  .play-expanded [data-controller="arcade"] .fight-actions {grid-area:1/3}
+}
+@media(prefers-reduced-motion:no-preference) {
+  body {transition:background-color .24s,color .2s}
+  .cart-front > img,.rack-key .keycap img {transition:filter .22s}
+  .dock-stage {transition:filter .2s}
+}

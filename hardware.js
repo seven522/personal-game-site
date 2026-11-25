@@ -1,5 +1,5 @@
 import { World, Body, Box, Vec3, Quaternion, Spring } from './vendor/cannon-es.js';
-import { makeKeySound } from './key-sound.js';
+import { makeKeySound } from './key-sound.js?v=20261125.3';
 
 const byId = id => document.getElementById(id);
 const quietMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -80,16 +80,17 @@ function addKey(button, voice) {
   world.addBody(body);
   const key = {button, body, anchor, spring, held: false, pressedAt: 0, releaseAt: 0, last: -1, pointer: null};
   keys.push(key);
+  const station = button.closest('[data-controller]');
   function press() {
     if (key.held) return;
     key.held = true; key.releaseAt = 0; key.pressedAt = performance.now(); anchor.position.z = 1;
-    audio.prepare(); audio.play(true, voice); start();
+    audio.prepare(); audio.play(true, voice, station?.dataset.controller === 'arcade'); start();
   }
   function release() {
     if (!key.held) return;
     key.held = false;
     key.releaseAt = Math.max(performance.now(), key.pressedAt + 47);
-    audio.play(false, voice); start();
+    audio.play(false, voice, station?.dataset.controller === 'arcade'); start();
   }
   button.addEventListener('pointerdown', e => {
     if (e.button !== 0 || key.pointer !== null) return;

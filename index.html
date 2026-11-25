@@ -10,10 +10,11 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="hardware.css?v=20261124.5">
   <link rel="stylesheet" href="gallery.css">
-  <link rel="stylesheet" href="trial-case.css?v=20261125.2">
+  <link rel="stylesheet" href="trial-case.css?v=20261125.3">
+  <link rel="stylesheet" href="arcade-theme.css?v=20261125.3">
   <link rel="preload" as="image" href="hardware/cart/front.webp">
   <link rel="preload" as="image" href="hardware/trial/dock.webp">
-  <script type="module" src="app.js?v=20261125.2"></script>
+  <script type="module" src="app.js?v=20261125.3"></script>
 </head>
 <body>
   <a href="#games" class="skip">跳到作品</a>
@@ -26,7 +27,7 @@
       <div class="rack assembly" role="group" aria-label="游戏卡带切换架">
         <img class="chassis" src="hardware/rack/rack.png" alt="">
         <button class="hardware-key rack-key" data-mode="game" aria-label="选择怪兽仙境" aria-pressed="true"><span class="keycap"><img src="hardware/rack/key-1.png" alt=""><span class="rack-title">怪兽仙境</span></span></button>
-        <button class="hardware-key rack-key" data-mode="slot-2" aria-label="空卡槽" disabled><span class="keycap"><img src="hardware/rack/key-2.png" alt=""><span class="rack-title"></span></span></button>
+        <button class="hardware-key rack-key" data-mode="slot-2" aria-label="选择铁拳破阵" aria-pressed="false"><span class="keycap"><img src="hardware/rack/key-2.png" alt=""><span class="rack-title">铁拳破阵</span></span></button>
         <button class="hardware-key rack-key" data-mode="slot-3" aria-label="空卡槽" disabled><span class="keycap"><img src="hardware/rack/key-3.png" alt=""><span class="rack-title"></span></span></button>
         <button class="hardware-key rack-key" data-mode="slot-4" aria-label="空卡槽" disabled><span class="keycap"><img src="hardware/rack/key-4.png" alt=""><span class="rack-title"></span></span></button>
         <button class="hardware-key rack-key" data-mode="slot-5" aria-label="空卡槽" disabled><span class="keycap"><img src="hardware/rack/key-5.png" alt=""><span class="rack-title"></span></span></button>
@@ -72,6 +73,7 @@
         </aside>
 
         <div class="dock-stage">
+          <div class="fight-marquee" aria-hidden="true"><i></i><b>IRON <em>IMPACT</em></b><i></i></div>
           <img class="dock-chassis" src="hardware/trial/dock.webp" alt="一体式掌机试玩底座与实体手柄" draggable="false">
 
           <div class="screen-viewport" id="trial-viewport">
@@ -90,15 +92,21 @@
             </div>
             <div class="pad-actions">
               <button type="button" class="pad-hit hit-start" id="pad-start" aria-label="START，开始试玩" title="START · 开始或继续试玩"><span aria-hidden="true">START</span></button>
-              <button type="button" class="pad-hit hit-a" id="pad-a" aria-label="A，确认" title="A · 确认"><span aria-hidden="true">A</span></button>
-              <button type="button" class="pad-hit hit-b" id="pad-b" aria-label="B，返回" title="B · 返回"><span aria-hidden="true">B</span></button>
+              <div class="fight-actions">
+                <button type="button" class="pad-hit hit-a" id="pad-a" aria-label="A，确认" title="A · 确认"><span aria-hidden="true">A</span></button>
+                <button type="button" class="pad-hit hit-b" id="pad-b" aria-label="B，返回" title="B · 返回"><span aria-hidden="true">B</span></button>
+                <button type="button" class="pad-hit hit-dash" id="pad-dash" hidden><span aria-hidden="true">闪避</span></button>
+                <button type="button" class="pad-hit hit-jump" id="pad-jump" hidden><span aria-hidden="true">跳跃</span></button>
+                <button type="button" class="pad-hit hit-parry" id="pad-parry" hidden><span aria-hidden="true">弹反</span></button>
+                <button type="button" class="pad-hit hit-super" id="pad-super" hidden><span aria-hidden="true">必杀</span></button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
   </main>
-  <footer><span id="footer-name">卡嗒</span><div class="footer-links"><a class="press" href="dev-notes.html">开发手记</a><a class="press" href="#games">回到卡带架</a></div></footer>
+  <footer><span id="footer-name">卡嗒</span><div class="footer-links"><a class="press" id="notes-link" href="dev-notes.html">开发手记</a><a class="press" href="#games">回到卡带架</a></div></footer>
   <dialog id="viewer" class="viewer" aria-labelledby="viewer-title"></dialog>
   <dialog id="about" class="about"><div class="viewer-head"><h2>关于卡嗒</h2><button class="icon-key press" aria-label="关闭关于" data-close><img src="icons/x-lg.svg" alt=""></button></div><p id="about-text"></p><a id="contact" hidden>联系开发者</a></dialog>
   <noscript>请启用 JavaScript 以查看插画、平台状态和作品介绍。</noscript>
