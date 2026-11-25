@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const codes = {up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', a:'Enter', b:'Escape'};
 export function setupTelevision() {
+  const station = $('trial');
   const power = $('tv-power');
   const pad = document.querySelector('.pad-controls');
   const sizeKey = $('screen-size');
@@ -9,9 +10,8 @@ export function setupTelevision() {
   const held = new Map();
   let game, frame, ready = false;
 
-  // Consume native long-press menus without interrupting the game's pointer events.
-  for (const type of ['contextmenu', 'selectstart']) {
-    pad.addEventListener(type, event => event.preventDefault());
+  for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
+    station.addEventListener(type, event => event.preventDefault(), true);
   }
 
   function start() {
@@ -21,7 +21,7 @@ export function setupTelevision() {
       frame.title = game.title + ' · Godot 试玩';
       frame.className = 'game-frame';
       frame.allow = 'autoplay; fullscreen';
-      frame.src = 'games/player.html?game=' + encodeURIComponent(game.id);
+      frame.src = 'games/player.html?game=' + encodeURIComponent(game.id) + '&v=20261125.2';
       $('layer-play').append(frame);
       power.hidden = true;
     }
@@ -45,7 +45,7 @@ export function setupTelevision() {
   phoneLayout.addEventListener('change', () => { if (!phoneLayout.matches) setExpanded(false); });
   $('online-play').onclick = () => {
     start();
-    $('trial').scrollIntoView({block:'start', behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+    station.scrollIntoView({block:'start', behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
   };
   window.addEventListener('message', event => {
     if (event.origin !== location.origin || event.source !== frame?.contentWindow ||

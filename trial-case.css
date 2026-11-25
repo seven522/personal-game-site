@@ -51,7 +51,6 @@
   max-width: 960px;
   margin: 0 auto;
   aspect-ratio: 1275 / 882;
-  user-select: none;
   container-type: inline-size;
   filter: drop-shadow(0 20px 28px rgba(28, 22, 14, .22)) drop-shadow(0 6px 10px rgba(28, 22, 14, .12));
 }
@@ -203,7 +202,7 @@
 .standby-copy small {font:750 clamp(11px,1.55cqw,15px)/1.5 var(--mono);color:#e6fc7a}
 .game-frame {background:#121511}
 .pad-controls {display:contents}
-.pad-controls, .pad-hit, .pad-hit > span {
+.trial-section, .trial-section * {
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;

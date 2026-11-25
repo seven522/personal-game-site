@@ -2,11 +2,18 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>卡带试玩</title>
 <style>
+  *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
   *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#10130f;color:#f8f5e5;font:600 14px/1.4 system-ui,sans-serif}
   body{display:grid;place-items:center}canvas{display:block;width:min(100vw,177.778vh);height:min(100vh,56.25vw);outline:none;touch-action:none}
   #loader{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;background:#20251c;text-align:center;padding:12px}
   #loader[hidden],button[hidden]{display:none}p{margin:0}progress{height:5px;width:min(160px,60vw);accent-color:#cef027}button{border:0;padding:8px 18px;background:#d6f22e;border-radius:4px;font:inherit}
 </style>
+<script>
+  // Native selection events in this frame do not bubble to the surrounding station.
+  for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
+    document.addEventListener(type, event => event.preventDefault(), true);
+  }
+</script>
 <script defer src="engine.js"></script><script defer src="player.js"></script>
 </head><body><canvas id="game-canvas" width="960" height="540" tabindex="0" aria-label="游戏画面"></canvas>
 <div id="loader" role="status"><p id="message">正在读取卡带…</p><progress></progress><button hidden id="retry">重新载入</button></div></body></html>
