@@ -1,5 +1,5 @@
 import { setupViewer } from './viewer.js?v=20261124.4';
-import { games, applyTheme } from './catalog.js?v=20261125.3';
+import { games, applyTheme } from './catalog.js?v=20261125.4';
 
 const gameId = new URL(location.href).searchParams.get('game');
 const selected = games.find(game => game.id === gameId);

@@ -1,4 +1,10 @@
 .fight-marquee {display:none}
+#boss-challenge {
+  min-width:0;max-width:100%;width:7em;min-height:44px;padding:4px;
+  border:1px solid #8292a1;border-radius:5px;color:#fff0d4;background:#263749;
+  font:700 14px/1.2 "Microsoft YaHei",sans-serif;cursor:pointer;
+}
+#boss-challenge:disabled {opacity:.55;cursor:default}
 
 /* The second cartridge borrows the rain alley's blue steel and the game's orange accent. */
 html[data-theme="iron"] {

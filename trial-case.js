@@ -23,6 +23,7 @@ export function setupTelevision() {
   const power = $('tv-power');
   const pad = document.querySelector('.pad-controls');
   const sizeKey = $('screen-size');
+  const challenge = $('boss-challenge');
   const phoneLayout = matchMedia('(max-width:760px), (pointer:coarse) and (max-width:1024px)');
   let returnScroll = 0;
   const held = new Map();
@@ -77,7 +78,22 @@ export function setupTelevision() {
     if (event.origin !== location.origin || event.source !== frame?.contentWindow ||
         event.data?.type !== 'cartridge-ready' || event.data.id !== game.id) return;
     ready = true;
+    const bossList = frame.contentDocument.getElementById('boss-select');
+    if (bossList) {
+      for (const option of bossList.options) {
+        if (option.value) challenge.add(new Option(option.text, option.value));
+      }
+      challenge.disabled = false;
+    }
     $('pad-start').setAttribute('aria-label', 'START，继续试玩' + game.title);
+  });
+  challenge.addEventListener('change', () => {
+    const list = frame?.contentDocument?.getElementById('boss-select');
+    if (!list || !challenge.value) return;
+    releaseAll();
+    list.value = challenge.value;
+    list.dispatchEvent(new frame.contentWindow.Event('change', {bubbles:true}));
+    challenge.value = '';
   });
 
   function select(next) {
@@ -87,6 +103,9 @@ export function setupTelevision() {
     frame = null;
     ready = false;
     game = next;
+    challenge.length = 1;
+    challenge.disabled = true;
+    challenge.hidden = next.controller !== 'arcade';
     station.dataset.controller = game.controller;
     bindings = layouts[game.controller];
     keyActions = {...shortcuts[game.controller]};

@@ -1,6 +1,6 @@
-import { games, applyTheme } from './catalog.js?v=20261125.3';
+import { games, applyTheme } from './catalog.js?v=20261125.4';
 import { setupViewer } from './viewer.js?v=20261124.4';
-import { setupTelevision } from './trial-case.js?v=20261125.3';
+import { setupTelevision } from './trial-case.js?v=20261125.4';
 
 const $ = id => document.getElementById(id);
 const shelf = document.querySelector('[data-catalog]');

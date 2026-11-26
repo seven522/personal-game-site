@@ -11,10 +11,10 @@
   <link rel="stylesheet" href="hardware.css?v=20261124.5">
   <link rel="stylesheet" href="gallery.css">
   <link rel="stylesheet" href="trial-case.css?v=20261125.3">
-  <link rel="stylesheet" href="arcade-theme.css?v=20261125.3">
+  <link rel="stylesheet" href="arcade-theme.css?v=20261125.4">
   <link rel="preload" as="image" href="hardware/cart/front.webp">
   <link rel="preload" as="image" href="hardware/trial/dock.webp">
-  <script type="module" src="app.js?v=20261125.3"></script>
+  <script type="module" src="app.js?v=20261125.4"></script>
 </head>
 <body>
   <a href="#games" class="skip">跳到作品</a>
@@ -37,7 +37,7 @@
         <div class="cart-space"><div class="cart-body">
           <div class="cart-side side-left"></div><div class="cart-side side-right"></div><div class="cart-side side-top"></div><div class="cart-side side-bottom"></div>
           <div class="cart-face cart-back"></div>
-          <div class="cart-face cart-front"><img src="hardware/cart/front.webp" alt="" draggable="false" fetchpriority="high"><span class="trial-sticker"><img id="sticker-print" src="media/demo/monster-paradise-start.webp" alt="怪兽仙境 Demo 开场画面卡贴" draggable="false"></span></div>
+          <div class="cart-face cart-front"><img src="hardware/cart/front.webp" alt="" draggable="false" fetchpriority="high"><span class="trial-sticker"><img id="sticker-print" src="media/demo/monster-paradise-start.webp?v=1c6b179" alt="怪兽仙境主线试玩开场画面" draggable="false"></span></div>
         </div></div>
         <button class="cart-touch" id="grab-cart" aria-label="旋转怪兽仙境卡带" aria-describedby="cart-guide" title="拖动旋转 · 双击复位"></button>
         <span id="cart-guide" class="sr">拖动可以转动和移动卡带，松手后会依惯性回落。也可使用方向键旋转，按空格翻面，按 Home 复位。</span>
@@ -49,10 +49,10 @@
         <div class="game-note">
           <div class="game-actions">
             <button type="button" id="online-play" class="launch-key" aria-controls="layer-play"><span class="launch-cap"><img src="icons/play-fill.svg" alt="">在线试玩</span></button>
-            <span id="tag" class="edition-note">开发中 Demo</span>
+            <span id="tag" class="edition-note">主线试玩 · 战斗更新</span>
           </div>
           <div class="note-copy">
-            <p id="description">从序章开始，跟随奥尼克听耐法瑞讲起往事。</p>
+            <p id="description">和八宝一起探索秘境，用「魔法侦测」查看敌人的战斗情报。</p>
             <output id="platform-status" aria-live="polite"></output>
           </div>
         </div>
@@ -69,6 +69,7 @@
           <h2 class="dock-title" id="trial-heading" aria-label="试玩台"><span>试</span><span>玩</span><span>台</span></h2>
           <div class="dock-lime-bar" aria-hidden="true"></div>
           <strong id="expanded-title"></strong>
+          <select id="boss-challenge" aria-label="直接挑战首领" disabled hidden><option value="">挑战首领</option></select>
           <button type="button" id="screen-size" aria-controls="trial-viewport" aria-expanded="false"><span class="size-mark" aria-hidden="true"></span><span id="size-label">放大试玩</span></button>
         </aside>
 

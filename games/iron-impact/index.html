@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>铁拳破阵 2.1 · IRON IMPACT</title>
-  <!-- Source: seven522/iron-impact @ 70600ad75081c9e2a6a24bec36b8f4856c3c40ba. station=1 embeds the game in the cartridge cabinet. -->
+  <title>铁拳破阵 2.4 · IRON IMPACT</title>
+  <!-- Source: seven522/iron-impact @ 423eacf253a334081bf3f99ebae97d017d926b09. station=1 embeds the game in the cartridge cabinet. -->
   <script>
     if (new URLSearchParams(location.search).get('station') === '1') {
       document.documentElement.classList.add('in-station');
@@ -58,6 +58,7 @@
     }
     .btn:hover { border-color: var(--primary); }
     .btn:active { transform: scale(0.97); }
+    select.btn { padding: 3px 8px; outline: none; }
     .stage {
       position: relative; width: 100%; aspect-ratio: 920 / 350; min-height: 320px; max-height: 440px;
       border-radius: 10px; overflow: hidden; border: 1px solid var(--card-border);
@@ -115,13 +116,21 @@
   <div class="shell">
     <div class="row top-bar">
       <div class="row-left">
-        <span class="title">铁拳破阵 2.1 · IRON IMPACT</span>
+        <span class="title">铁拳破阵 2.4 · IRON IMPACT</span>
         <span id="hud-wave" class="badge">WAVE 1 · 霓虹雨巷</span>
         <span id="hud-score" class="mono">SCORE 0</span>
         <span id="hud-best" class="mono">BEST 0</span>
       </div>
       <div class="row-right">
-        <button id="btn-boss" class="btn">直挑 BOSS</button>
+        <select id="boss-select" class="btn">
+          <option value="">直挑 BOSS ▾</option>
+          <option value="3">① 钢拳泰坦 (力量)</option>
+          <option value="6">② 绯月鬼忍 (刺客)</option>
+          <option value="9">③ 苍雷星术师 (浮空法)</option>
+          <option value="12">④ 圣盾巨神兵 (重盾炮)</option>
+          <option value="15">⑤ 炎冰双煞 (双人协同)</option>
+        </select>
+        <button id="btn-biome" class="btn">切换场景</button>
         <button id="btn-mode" class="btn">木桩训练</button>
         <button id="btn-theme" class="btn">浅/深主题</button>
         <button id="btn-reset" class="btn">重开</button>
@@ -131,7 +140,7 @@
     <div class="stage">
       <canvas id="game" tabindex="0"></canvas>
       <div id="start-overlay" class="overlay">
-        <div class="overlay-cta">点击画面开始战斗 · 铁拳破阵 2.1</div>
+        <div class="overlay-cta">点击画面开始战斗 · 铁拳破阵 2.4</div>
         <div class="overlay-sub">
           <span class="kbd">A</span><span class="kbd">D</span> 移动 · <span class="kbd">W</span> 跳 · <span class="kbd">J</span> 轻连招 · <span class="kbd">K</span> 挑飞/长按破防 · <span class="kbd">L</span> 闪避 · <span class="kbd">I</span> 弹反 · <span class="kbd">U</span> 必杀奥义
         </div>
@@ -179,7 +188,8 @@
     const hudBest = document.getElementById('hud-best');
     const buildSummary = document.getElementById('build-summary');
     const btnMode = document.getElementById('btn-mode');
-    const btnBoss = document.getElementById('btn-boss');
+    const bossSelect = document.getElementById('boss-select');
+    const btnBiome = document.getElementById('btn-biome');
     const btnReset = document.getElementById('btn-reset');
 
     const W = 920;
@@ -199,13 +209,41 @@
     updateThemeFlag();
     window.addEventListener('themechange', updateThemeFlag);
 
+    let forcedBiome = -1; // -1 = auto by wave
     function getBiome(w) {
+      if (forcedBiome >= 0) return forcedBiome;
       if (mode === 'dummy') return 2;
       if (w % 3 === 0) return 1; // Boss Steel Cage
       return (Math.floor((w - 1) / 3) + (w % 3 === 2 ? 1 : 0)) % 2 === 0 ? 0 : 2;
     }
 
     const BIOME_NAMES = ['霓虹雨巷', '烈焰铁笼', '残阳古道场'];
+    // Deterministic skyline & mountain geometry for smooth parallax
+    const SKYLINE = [
+      { x: -40, w: 78, h: 155, win: '#38bdf8' }, { x: 42, w: 64, h: 118, win: '#fbbf24' },
+      { x: 112, w: 92, h: 182, win: '#f472b6' }, { x: 212, w: 68, h: 130, win: '#38bdf8' },
+      { x: 288, w: 102, h: 196, win: '#fbbf24' }, { x: 400, w: 74, h: 144, win: '#38bdf8' },
+      { x: 484, w: 88, h: 175, win: '#f472b6' }, { x: 582, w: 72, h: 124, win: '#fbbf24' },
+      { x: 662, w: 96, h: 188, win: '#38bdf8' }, { x: 766, w: 76, h: 136, win: '#f472b6' },
+      { x: 848, w: 95, h: 168, win: '#fbbf24' },
+    ];
+    let envTime = 0;
+    let decals = []; // { kind:'crack'|'scorch', x, r, life, maxLife, seed }
+    let rainSplashes = []; // { x, y, life, maxLife }
+    let wallHitFlash = { left: 0, right: 0 };
+    let envLight = { alpha: 0, color: '#facc15', x: W / 2, y: GROUND_Y - 60 };
+    let letterboxAmount = 0;
+
+    function addDecal(kind, x, r = 38) {
+      if (!feel.vfx) return;
+      decals.push({ kind, x, r, life: 9, maxLife: 9, seed: Math.random() * 100 });
+      if (decals.length > 18) decals.shift();
+    }
+    function flashEnvLight(x, y, color, alpha = 0.45) {
+      if (!feel.vfx) return;
+      envLight.x = x; envLight.y = y; envLight.color = color;
+      envLight.alpha = Math.max(envLight.alpha, alpha);
+    }
 
     function getPalette(biomeIdx) {
       const l = isLightTheme;
@@ -218,7 +256,13 @@
         enemyHeavy: l ? '#991b1b' : '#f87171',
         enemyStriker: l ? '#7e22ce' : '#c084fc',
         enemyAcrobat: l ? '#047857' : '#34d399',
+        enemyBuffer: l ? '#b45309' : '#f59e0b',
         enemyBoss: l ? '#7f1d1d' : '#dc2626',
+        enemyBossNinja: l ? '#581c87' : '#a855f7',
+        enemyBossMage: l ? '#0369a1' : '#0ea5e9',
+        enemyBossFortress: l ? '#1e3a8a' : '#3b82f6',
+        enemyTwinFire: l ? '#c2410c' : '#f97316',
+        enemyTwinIce: l ? '#0e7490' : '#22d3ee',
         enemyDummy: l ? '#b45309' : '#fbbf24',
         shieldFill: 'rgba(96,165,250,0.34)',
         shieldStroke: l ? '#2563eb' : '#93c5fd',
@@ -412,26 +456,26 @@
     const UPGRADE_POOL = [
       { id: 'flame',     icon: '🔥', name: '烈焰重拳', desc: '重击/蓄力拳伤害 +35%，命中爆出火焰冲击', color: '#f97316' },
       { id: 'thunder',   icon: '⚡', name: '雷霆连击', desc: '每累计 4 次连击召唤落雷劈击目标 (+22 伤)', color: '#38bdf8' },
-      { id: 'vamp',      icon: '❤️', name: '嗜血斗魂', desc: '最大生命 +25，每次击杀回复 14 HP 与 25 体力', color: '#ef4444' },
+      { id: 'vamp',      icon: '❤️', name: '嗜血斗魂', desc: '最大生命 +20，每次击杀回复 8 HP 与 20 体力', color: '#ef4444' },
       { id: 'phantom',   icon: '💨', name: '幻影爆裂', desc: '闪避体力消耗减半，冲刺留下爆裂残影震伤敌人', color: '#a855f7' },
-      { id: 'wallcrush', icon: '💥', name: '撞墙碎骨', desc: '撞墙反弹伤害翻倍 (+24) 并额外获得 18 怒气', color: '#fb923c' },
-      { id: 'fury',      icon: '🌀', name: '暴怒奥义', desc: '怒气积攒速度 +60%，必杀奥义伤害 +35%', color: '#facc15' },
+      { id: 'wallcrush', icon: '💥', name: '撞墙碎骨', desc: '撞墙反弹伤害翻倍 (+24) 并额外获得 8 怒气', color: '#fb923c' },
+      { id: 'fury',      icon: '🌀', name: '暴怒奥义', desc: '怒气积攒速度 +30%，必杀奥义伤害 +30%', color: '#facc15' },
       { id: 'parryking', icon: '🛡️', name: '钢骨弹反', desc: '弹反窗口放宽，成功弹反震飞敌人并回满体力', color: '#22c55e' },
       { id: 'breath',    icon: '🌬️', name: '疾风吐纳', desc: '体力上限 +30，体力自然恢复速度 +45%', color: '#14b8a6' },
     ];
 
     // ==================== Attack Frame Data ====================
     const ATTACKS = {
-      jab1: { startup: 0.04, active: 0.065, recovery: 0.13, dmg: 12, posture: 10, hitstop: 0.036, kbX: 115, kbY: -35, shake: 4, reach: 68, height: 54, lunge: 155, color: '#fbbf24', power: 0.9, arcType: 'thrust', exGain: 7, spCost: 6, spRefund: 3 },
-      jab2: { startup: 0.05, active: 0.07, recovery: 0.145, dmg: 18, posture: 14, hitstop: 0.056, kbX: 185, kbY: -65, shake: 7.5, reach: 76, height: 58, lunge: 200, color: '#fb923c', power: 1.35, arcType: 'hook', exGain: 9, spCost: 7, spRefund: 3 },
-      kick3: { startup: 0.075, active: 0.085, recovery: 0.2, dmg: 32, posture: 24, hitstop: 0.11, kbX: 550, kbY: -235, shake: 14, reach: 90, height: 64, lunge: 235, color: '#f97316', power: 2.2, arcType: 'kick', wallBounce: true, zoom: 1.055, exGain: 14, spCost: 11, spRefund: 4 },
-      dashKnee: { startup: 0.03, active: 0.09, recovery: 0.15, dmg: 22, posture: 18, hitstop: 0.075, kbX: 310, kbY: -190, shake: 9, reach: 82, height: 58, lunge: 420, color: '#38bdf8', power: 1.65, arcType: 'thrust', wallBounce: true, exGain: 12, spCost: 12, spRefund: 4 },
-      uppercut: { startup: 0.065, active: 0.09, recovery: 0.185, dmg: 26, posture: 22, hitstop: 0.09, kbX: 115, kbY: -520, shake: 11, reach: 76, height: 86, lunge: 145, color: '#38bdf8', power: 1.85, arcType: 'upper', launcher: true, zoom: 1.04, exGain: 13, spCost: 18, spRefund: 0 },
-      chargePunch: { startup: 0.032, active: 0.105, recovery: 0.21, dmg: 56, posture: 45, hitstop: 0.15, kbX: 690, kbY: -265, shake: 18, reach: 106, height: 68, lunge: 450, color: '#facc15', power: 3.0, arcType: 'mega', guardBreak: true, wallBounce: true, zoom: 1.08, exGain: 22, spCost: 22, spRefund: 0 },
-      airKick: { startup: 0.038, active: 0.08, recovery: 0.11, dmg: 16, posture: 12, hitstop: 0.045, kbX: 145, kbY: -235, shake: 5.5, reach: 74, height: 60, lunge: 120, color: '#fbbf24', power: 1.15, arcType: 'kick', exGain: 8, spCost: 7, spRefund: 3 },
-      airSlam: { startup: 0.045, active: 0.5, recovery: 0.19, dmg: 38, posture: 32, hitstop: 0.11, kbX: 300, kbY: -360, shake: 16, reach: 126, height: 74, lunge: 0, color: '#f97316', power: 2.5, arcType: 'slam', zoom: 1.06, exGain: 16, spCost: 18, spRefund: 0 },
-      superFlurry: { dmg: 14, posture: 12, hitstop: 0.028, kbX: 45, kbY: -45, shake: 7, power: 1.4, color: '#facc15', exGain: 0, spCost: 0, spRefund: 0 },
-      superFinisher: { dmg: 78, posture: 60, hitstop: 0.18, kbX: 780, kbY: -330, shake: 24, power: 3.4, color: '#f97316', guardBreak: true, wallBounce: true, zoom: 1.11, exGain: 0, spCost: 0, spRefund: 0 },
+      jab1: { startup: 0.04, active: 0.065, recovery: 0.13, dmg: 12, posture: 10, hitstop: 0.036, kbX: 115, kbY: -35, shake: 4, reach: 68, height: 54, lunge: 155, color: '#fbbf24', power: 0.9, arcType: 'thrust', exGain: 2.5, spCost: 6, spRefund: 3 },
+      jab2: { startup: 0.05, active: 0.07, recovery: 0.145, dmg: 17, posture: 14, hitstop: 0.056, kbX: 185, kbY: -65, shake: 7.5, reach: 76, height: 58, lunge: 200, color: '#fb923c', power: 1.35, arcType: 'hook', exGain: 3.5, spCost: 7, spRefund: 3 },
+      kick3: { startup: 0.075, active: 0.085, recovery: 0.2, dmg: 30, posture: 22, hitstop: 0.11, kbX: 550, kbY: -235, shake: 14, reach: 90, height: 64, lunge: 235, color: '#f97316', power: 2.2, arcType: 'kick', wallBounce: true, zoom: 1.055, exGain: 5.5, spCost: 11, spRefund: 4 },
+      dashKnee: { startup: 0.03, active: 0.09, recovery: 0.15, dmg: 21, posture: 16, hitstop: 0.075, kbX: 310, kbY: -190, shake: 9, reach: 82, height: 58, lunge: 420, color: '#38bdf8', power: 1.65, arcType: 'thrust', wallBounce: true, exGain: 4.5, spCost: 12, spRefund: 4 },
+      uppercut: { startup: 0.065, active: 0.09, recovery: 0.185, dmg: 24, posture: 20, hitstop: 0.09, kbX: 115, kbY: -520, shake: 11, reach: 76, height: 86, lunge: 145, color: '#38bdf8', power: 1.85, arcType: 'upper', launcher: true, zoom: 1.04, exGain: 5.0, spCost: 18, spRefund: 0 },
+      chargePunch: { startup: 0.032, active: 0.105, recovery: 0.21, dmg: 52, posture: 42, hitstop: 0.15, kbX: 690, kbY: -265, shake: 18, reach: 106, height: 68, lunge: 450, color: '#facc15', power: 3.0, arcType: 'mega', guardBreak: true, wallBounce: true, zoom: 1.08, exGain: 8.5, spCost: 22, spRefund: 0 },
+      airKick: { startup: 0.038, active: 0.08, recovery: 0.11, dmg: 15, posture: 11, hitstop: 0.045, kbX: 145, kbY: -235, shake: 5.5, reach: 74, height: 60, lunge: 120, color: '#fbbf24', power: 1.15, arcType: 'kick', exGain: 3.0, spCost: 7, spRefund: 3 },
+      airSlam: { startup: 0.045, active: 0.5, recovery: 0.19, dmg: 35, posture: 30, hitstop: 0.11, kbX: 300, kbY: -360, shake: 16, reach: 126, height: 74, lunge: 0, color: '#f97316', power: 2.5, arcType: 'slam', zoom: 1.06, exGain: 6.5, spCost: 18, spRefund: 0 },
+      superFlurry: { dmg: 13, posture: 10, hitstop: 0.028, kbX: 45, kbY: -45, shake: 7, power: 1.4, color: '#facc15', exGain: 0, spCost: 0, spRefund: 0 },
+      superFinisher: { dmg: 72, posture: 52, hitstop: 0.18, kbX: 780, kbY: -330, shake: 24, power: 3.4, color: '#f97316', guardBreak: true, wallBounce: true, zoom: 1.11, exGain: 0, spCost: 0, spRefund: 0 },
     };
 
     // ==================== Game State ====================
@@ -466,7 +510,8 @@
     let inputBuffer = null;
 
     let particles = [], arcs = [], rings = [], floatTexts = [], afterimages = [], lightnings = [];
-    let enemies = [], projectiles = [], props = [], pickups = [], shockwaves = [];
+    let enemies = [], projectiles = [], props = [], pickups = [], shockwaves = [], hazards = [];
+    let bossChallengeToggle = 0; // alternates Titan (wave 3) and Shadow Ninja (wave 6) on direct boss challenge
     let ambientParticles = Array.from({ length: 38 }, () => ({
       x: Math.random() * W, y: Math.random() * GROUND_Y,
       spd: 0.6 + Math.random() * 1.1, size: 1.5 + Math.random() * 2.5, phase: Math.random() * 6.28,
@@ -489,7 +534,7 @@
     function createPlayer() {
       return {
         x: 220, y: GROUND_Y, vx: 0, vy: 0,
-        dir: 1, hp: 100, maxHp: 100, sp: 100, maxSp: 100, ex: 35, maxEx: 100,
+        dir: 1, hp: 100, maxHp: 100, sp: 100, maxSp: 100, ex: 0, maxEx: 100,
         spRegenDelay: 0, exhaustedTimer: 0,
         onGround: true,
         state: 'idle', // idle, run, attack, charge, dash, parry, super, hurt
@@ -498,7 +543,7 @@
         dashTimer: 0, dashCooldown: 0,
         parryTimer: 0, parryCooldown: 0,
         superStep: 0, superTimer: 0,
-        invulnTimer: 0, hurtTimer: 0, flashTimer: 0,
+        invulnTimer: 0, hurtTimer: 0, flashTimer: 0, slowTimer: 0,
         scaleX: 1, scaleY: 1,
         airJumps: 1, airComboCount: 0,
         bandPoints: Array.from({ length: 5 }, (_, i) => ({ x: 220 - i * 7, y: GROUND_Y - 56 })),
@@ -534,26 +579,40 @@
     let nextId = 1;
 
     function spawnEnemy(type, x) {
-      const scaleHp = mode === 'waves' ? (1 + (wave - 1) * 0.14) : 1;
+      const scaleHp = mode === 'waves' ? (1 + Math.min(8, wave - 1) * 0.14) : 1;
+      const scaleDmg = mode === 'waves' ? (1 + Math.min(8, wave - 1) * 0.06) : 1;
       const defs = {
-        brawler: { hp: 72,  speed: 138, w: 32, h: 62, shield: false, heavy: false, boss: false, dmg: 10, colorKey: 'enemyBrawler', label: '街斗手' },
-        shield:  { hp: 92,  speed: 96,  w: 36, h: 64, shield: true,  heavy: false, boss: false, dmg: 12, colorKey: 'enemyShield',  label: '重盾兵' },
-        striker: { hp: 62,  speed: 145, w: 30, h: 60, shield: false, heavy: false, boss: false, dmg: 11, colorKey: 'enemyStriker', label: '飞镖忍影' },
-        acrobat: { hp: 80,  speed: 185, w: 30, h: 60, shield: false, heavy: false, boss: false, dmg: 11, colorKey: 'enemyAcrobat', label: '疾风武僧' },
-        heavy:   { hp: 145, speed: 84,  w: 44, h: 74, shield: false, heavy: true,  boss: false, dmg: 18, colorKey: 'enemyHeavy',   label: '铁臂暴徒' },
-        boss:    { hp: 460, speed: 106, w: 56, h: 92, shield: false, heavy: true,  boss: true,  dmg: 22, colorKey: 'enemyBoss',    label: '铁狱霸王 · 钢拳泰坦' },
-        dummy:   { hp: 9999,speed: 0,   w: 34, h: 64, shield: false, heavy: false, boss: false, dmg: 0,  colorKey: 'enemyDummy',   label: '练习木桩' },
+        brawler:       { hp: 82,  speed: 148, w: 32, h: 62, shield: false, heavy: false, boss: false, dmg: 18, colorKey: 'enemyBrawler',      label: '街斗手' },
+        shield:        { hp: 105, speed: 102, w: 36, h: 64, shield: true,  heavy: false, boss: false, dmg: 21, colorKey: 'enemyShield',       label: '重盾兵' },
+        striker:       { hp: 68,  speed: 155, w: 30, h: 60, shield: false, heavy: false, boss: false, dmg: 18, colorKey: 'enemyStriker',      label: '飞镖忍影' },
+        acrobat:       { hp: 88,  speed: 196, w: 30, h: 60, shield: false, heavy: false, boss: false, dmg: 20, colorKey: 'enemyAcrobat',      label: '疾风武僧' },
+        buffer:        { hp: 78,  speed: 132, w: 32, h: 64, shield: false, heavy: false, boss: false, dmg: 15, colorKey: 'enemyBuffer',       label: '赤鼓战巫' },
+        heavy:         { hp: 165, speed: 92,  w: 44, h: 74, shield: false, heavy: true,  boss: false, dmg: 30, colorKey: 'enemyHeavy',        label: '铁臂暴徒' },
+        boss:          { hp: 540, speed: 116, w: 56, h: 92, shield: false, heavy: true,  boss: true,  dmg: 32, colorKey: 'enemyBoss',         label: '铁狱霸王 · 钢拳泰坦' },
+        boss_ninja:    { hp: 460, speed: 175, w: 40, h: 74, shield: false, heavy: false, boss: true,  dmg: 26, colorKey: 'enemyBossNinja',    label: '影刃宗师 · 绯月鬼忍' },
+        boss_mage:     { hp: 430, speed: 135, w: 42, h: 76, shield: false, heavy: false, boss: true,  dmg: 26, colorKey: 'enemyBossMage',     label: '雷穹法皇 · 苍雷星术师' },
+        boss_fortress: { hp: 580, speed: 86,  w: 62, h: 94, shield: true,  heavy: true,  boss: true,  dmg: 30, colorKey: 'enemyBossFortress', label: '圣盾堡垒 · 巨神兵' },
+        boss_twin_fire:{ hp: 320, speed: 170, w: 38, h: 72, shield: false, heavy: false, boss: true,  dmg: 24, colorKey: 'enemyTwinFire',     label: '炎煞 · 烈焰罗刹' },
+        boss_twin_ice: { hp: 290, speed: 145, w: 36, h: 70, shield: false, heavy: false, boss: true,  dmg: 22, colorKey: 'enemyTwinIce',      label: '冰煞 · 寒霜鬼姬' },
+        dummy:         { hp: 9999,speed: 0,   w: 34, h: 64, shield: false, heavy: false, boss: false, dmg: 0,  colorKey: 'enemyDummy',        label: '练习木桩' },
       }[type];
-      const maxHp = type === 'dummy' ? 9999 : Math.round(defs.hp * scaleHp);
+      const maxHp = type === 'dummy' ? 9999 : Math.round(defs.hp * (defs.boss ? Math.min(1.45, scaleHp) : scaleHp));
+      const postureMax = type === 'boss' ? 165 : type === 'boss_fortress' ? 180 : type === 'boss_ninja' ? 130 : type === 'boss_mage' ? 120 : defs.boss ? 110 : 0;
+      const startY = type === 'boss_mage' ? GROUND_Y - 78 : GROUND_Y;
       return {
-        id: nextId++, type, x, y: GROUND_Y, vx: 0, vy: 0,
+        id: nextId++, type, x, y: startY, vx: 0, vy: 0,
         dir: x > player.x ? -1 : 1,
         hp: maxHp, maxHp,
-        posture: defs.boss ? 140 : 0, maxPosture: defs.boss ? 140 : 0,
+        posture: postureMax, maxPosture: postureMax,
         speed: defs.speed, w: defs.w, h: defs.h,
-        hasShield: defs.shield, isHeavy: defs.heavy, isBoss: defs.boss,
-        dmg: defs.dmg, colorKey: defs.colorKey, label: defs.label,
-        state: 'idle', stateTimer: 0, subAttack: '', aiCooldown: 0.45 + Math.random() * 0.45,
+        hasShield: defs.shield, shieldHp: type === 'boss_fortress' ? 2 : (defs.shield ? 1 : 0),
+        shieldRegenTimer: 0,
+        isHeavy: defs.heavy, isBoss: defs.boss, isHover: type === 'boss_mage',
+        dmg: type === 'dummy' ? 0 : Math.round(defs.dmg * (defs.boss ? Math.min(1.25, scaleDmg) : scaleDmg)),
+        colorKey: defs.colorKey, label: defs.label,
+        state: 'idle', stateTimer: 0, subAttack: '', comboLeft: 0, phase: 1,
+        aiCooldown: 0.35 + Math.random() * 0.35,
+        buffTimer: 0, drumCooldown: 2.2,
         flashTimer: 0, hitJitterTimer: 0, scaleX: 1, scaleY: 1,
         wallBounceArmed: false, deadAlpha: 1, animTime: Math.random() * 10,
         turretTimer: 2.2,
@@ -577,43 +636,69 @@
     }
 
     function spawnWave(n) {
-      enemies = []; projectiles = []; shockwaves = []; props = [];
+      enemies = []; projectiles = []; shockwaves = []; props = []; hazards = [];
       const bIdx = getBiome(n);
       hudWave.textContent = `WAVE ${n} · ${BIOME_NAMES[bIdx]}`;
 
       if (n % 3 === 0) {
-        // BOSS WAVE!
-        showBanner(`BOSS 来袭 · WAVE ${n}`, '铁狱霸王·钢拳泰坦 — 弹反 / 破架势条 / 开 U 必杀！');
-        enemies.push(spawnEnemy('boss', 730));
-        spawnProp('barrel', 460);
-        spawnProp('crate', 140);
+        // 5 Distinct Boss Archetypes cycling across Waves 3, 6, 9, 12, 15!
+        const bossSlot = ((n / 3) - 1) % 5;
+        if (bossSlot === 0) {
+          showBanner(`BOSS ① · 钢拳泰坦 (WAVE ${n})`, '力量压制型 — 熔岩地裂 / 二连重拳 / 诱撞墙眩晕！');
+          enemies.push(spawnEnemy('boss', 730));
+          spawnProp('barrel', 460);
+          spawnProp('crate', 140);
+        } else if (bossSlot === 1) {
+          showBanner(`BOSS ② · 绯月鬼忍 (WAVE ${n})`, '高速刺客型 — 瞬步背刺 / 居合红线 / 反弹苦无！');
+          enemies.push(spawnEnemy('boss_ninja', 740));
+          spawnProp('crate', 150);
+        } else if (bossSlot === 2) {
+          showBanner(`BOSS ③ · 苍雷星术师 (WAVE ${n})`, '浮空雷法型 — 跳跃空连 / 按 I 反弹雷球把法师击落！');
+          enemies.push(spawnEnemy('boss_mage', 720));
+          spawnProp('crate', 160);
+        } else if (bossSlot === 3) {
+          showBanner(`BOSS ④ · 圣盾巨神兵 (WAVE ${n})`, '重盾炮火型 — 长按 K 蓄力破盾暴露过热核心 / 躲避榴弹！');
+          enemies.push(spawnEnemy('boss_fortress', 730));
+          spawnProp('barrel', 470);
+          spawnProp('crate', 140);
+        } else {
+          showBanner(`BOSS ⑤ · 炎冰双煞 (WAVE ${n})`, '双人协同战 — 击杀一人后另一人将共鸣觉醒！注意冰阵减速');
+          enemies.push(spawnEnemy('boss_twin_fire', 620));
+          enemies.push(spawnEnemy('boss_twin_ice', 790));
+          spawnProp('barrel', 430);
+          spawnProp('crate', 130);
+        }
         return;
       }
 
-      showBanner(`WAVE ${n} · ${BIOME_NAMES[bIdx]}`, n === 1 ? '打飞红油桶爆炸 · I 弹反 · U 满气必杀' : '新敌群登场！');
       if (n === 1) {
-        enemies.push(spawnEnemy('brawler', 600));
-        enemies.push(spawnEnemy('shield', 740));
-        enemies.push(spawnEnemy('striker', 830));
-        spawnProp('barrel', 490);
+        showBanner(`WAVE 1 · ${BIOME_NAMES[bIdx]}`, '硬核平衡版：优先切后排 · 善用 I 弹反与体力节奏');
+        enemies.push(spawnEnemy('brawler', 580));
+        enemies.push(spawnEnemy('shield', 720));
+        enemies.push(spawnEnemy('striker', 835));
+        spawnProp('barrel', 480);
         spawnProp('crate', 790);
       } else if (n === 2) {
-        enemies.push(spawnEnemy('acrobat', 620));
-        enemies.push(spawnEnemy('shield', 730));
-        enemies.push(spawnEnemy('striker', 120));
-        enemies.push(spawnEnemy('heavy', 820));
+        showBanner(`WAVE 2 · 赤鼓战巫登场！`, '优先击杀金色「赤鼓战巫」，否则敌群将进入狂暴 BUFF！');
+        enemies.push(spawnEnemy('acrobat', 590));
+        enemies.push(spawnEnemy('shield', 700));
+        enemies.push(spawnEnemy('heavy', 120));
+        enemies.push(spawnEnemy('buffer', 830));
         spawnProp('barrel', 420);
-        spawnProp('crate', 670);
+        spawnProp('crate', 650);
       } else {
+        showBanner(`WAVE ${n} · ${BIOME_NAMES[bIdx]}`, '高危敌群与战巫协同来袭！');
         const count = Math.min(6, 3 + Math.floor(n / 2));
         const types = ['brawler', 'shield', 'striker', 'acrobat', 'heavy'];
-        for (let i = 0; i < count; i++) {
-          const side = i % 2 === 0 ? WALL_R - 45 - i * 38 : WALL_L + 45 + i * 36;
+        // Always include 1 Buffer Shaman in waves 4+
+        enemies.push(spawnEnemy('buffer', WALL_R - 55));
+        for (let i = 0; i < count - 1; i++) {
+          const side = i % 2 === 0 ? WALL_R - 115 - i * 42 : WALL_L + 45 + i * 38;
           const t = types[(i + n) % types.length];
-          enemies.push(spawnEnemy(t, Math.max(WALL_L + 35, Math.min(WALL_R - 35, side))));
+          enemies.push(spawnEnemy(t, Math.max(WALL_L + 35, Math.min(WALL_R - 80, side))));
         }
         spawnProp('barrel', 360 + Math.random() * 240);
-        spawnProp('crate', 150 + Math.random() * 580);
+        if (Math.random() < 0.7) spawnProp('crate', 150 + Math.random() * 580);
       }
     }
 
@@ -651,14 +736,14 @@
       if (!up) return;
       activeUpgrades[up.id] = (activeUpgrades[up.id] || 0) + 1;
       if (up.id === 'vamp') {
-        player.maxHp += 25;
-        player.hp = Math.min(player.maxHp, player.hp + 35);
+        player.maxHp += 20;
+        player.hp = Math.min(player.maxHp, player.hp + 22);
       } else if (up.id === 'breath') {
         player.maxSp += 30;
         player.sp = player.maxSp;
-        player.hp = Math.min(player.maxHp, player.hp + 20);
+        player.hp = Math.min(player.maxHp, player.hp + 12);
       } else {
-        player.hp = Math.min(player.maxHp, player.hp + 20);
+        player.hp = Math.min(player.maxHp, player.hp + 12);
       }
       restoreStamina(player.maxSp, true);
       runStats.waveNoHit = true;
@@ -690,23 +775,24 @@
       sfx.explosion();
     }
 
-    function resetGame(startAtBoss = false) {
+    function resetGame(bossWaveNum = 0) {
       player = createPlayer();
       particles = []; arcs = []; rings = []; floatTexts = []; afterimages = []; lightnings = [];
-      projectiles = []; props = []; pickups = []; shockwaves = [];
+      projectiles = []; props = []; pickups = []; shockwaves = []; hazards = [];
+      decals = []; rainSplashes = []; wallHitFlash.left = 0; wallHitFlash.right = 0; envLight.alpha = 0; letterboxAmount = 0;
       activeUpgrades = {}; upgradeChoices = []; refreshBuildSummary();
-      score = 0; wave = startAtBoss ? 3 : 1; comboCount = 0; comboTimer = 0; thunderCounter = 0;
+      score = 0; wave = bossWaveNum ? bossWaveNum : 1; comboCount = 0; comboTimer = 0; thunderCounter = 0;
       gameOver = false; settlement = null;
       runStats = { kills: 0, maxCombo: 0, parries: 0, guardBreaks: 0, waveNoHit: true, waveBonus: null };
       hitStopTimer = 0; slowMoTimer = 0; slowMoScale = 1;
       camShakeMag = 0; camZoom = 1; camZoomTarget = 1; speedLineAlpha = 0; superCinematicAlpha = 0;
       waveClearPending = false; waveClearDelay = 0;
       hudScore.textContent = 'SCORE 0';
-      if (startAtBoss) {
+      if (bossWaveNum) {
         mode = 'waves';
         btnMode.textContent = '木桩训练';
-        player.ex = 100; // Give full EX for instant fun against Boss!
-        spawnWave(3);
+        player.ex = 15; // Modest starting EX, must earn Super!
+        spawnWave(bossWaveNum);
       } else if (mode === 'dummy') {
         spawnDummyMode();
       } else {
@@ -769,7 +855,7 @@
     }
 
     function gainEx(amount) {
-      const mult = 1 + hasUpgrade('fury') * 0.6 + (comboCount >= 8 ? 0.25 : 0);
+      const mult = 1 + hasUpgrade('fury') * 0.3 + (comboCount >= 10 ? 0.15 : 0);
       player.ex = Math.min(player.maxEx, player.ex + amount * mult);
     }
 
@@ -783,6 +869,8 @@
       triggerZoom(1.08, 0.85);
       addRing(prop.x, prop.y - 24, 155, '#f97316', 7);
       addRing(prop.x, prop.y - 24, 105, '#facc15', 5);
+      addDecal('scorch', prop.x, 56);
+      flashEnvLight(prop.x, prop.y - 36, '#f97316', 0.65);
       addSparks(prop.x, prop.y - 24, 28, 0, -1, '#facc15', 460, 5);
       addShards(prop.x, prop.y - 24, 14, 0, '#ef4444');
       addFloatText(prop.x, prop.y - 78, 'BOOM!!', '#facc15', 1.45);
@@ -865,6 +953,7 @@
       sfx.superStart();
       addFloatText(player.x, player.y - 90, '奥义 · 崩山乱舞!!', '#facc15', 1.45);
       addRing(player.x, player.y - 36, 110, '#facc15', 5);
+      flashEnvLight(player.x, player.y - 45, '#facc15', 0.55);
     }
 
     function triggerDash() {
@@ -900,9 +989,9 @@
       }
 
       if (perfect) {
-        slowMoTimer = 0.36; slowMoScale = 0.3;
-        gainEx(18);
-        restoreStamina(32, true);
+        slowMoTimer = 0.34; slowMoScale = 0.32;
+        gainEx(9);
+        restoreStamina(28, true);
         sfx.parry();
         addFloatText(player.x, player.y - 80, '极限闪避! +EX +SP', '#38bdf8', 1.12);
         addRing(player.x, player.y - 34, 74, '#38bdf8', 3);
@@ -943,32 +1032,45 @@
       if (hasUpgrade('flame') && (atk === ATTACKS.chargePunch || atk === ATTACKS.uppercut || atk === ATTACKS.airSlam || atk === ATTACKS.kick3)) {
         dmg = Math.round(dmg * (1 + 0.35 * hasUpgrade('flame')));
         addRing(hitX, hitY, 58, '#f97316', 4);
+        addDecal('scorch', enemy.x, 28);
+        flashEnvLight(hitX, hitY, '#f97316', 0.32);
       }
       if (hasUpgrade('fury') && (atk === ATTACKS.superFlurry || atk === ATTACKS.superFinisher)) {
-        dmg = Math.round(dmg * (1 + 0.35 * hasUpgrade('fury')));
+        dmg = Math.round(dmg * (1 + 0.3 * hasUpgrade('fury')));
       }
       if (enemy.state === 'stunned') dmg = Math.round(dmg * 1.45);
 
       let hitstop = atk.hitstop;
       let shake = atk.shake;
 
-      // Guard Break!
+      // Guard Break! (Supports multi-layer shield on Fortress Boss)
       if (enemy.hasShield && atk.guardBreak) {
-        enemy.hasShield = false;
-        enemy.state = 'stunned';
-        enemy.stateTimer = 2.6;
-        dmg = Math.round(dmg * 1.25);
-        hitstop = 0.16; shake = 20;
-        slowMoTimer = 0.24; slowMoScale = 0.25;
-        triggerZoom(1.09, 0.95);
-        addShards(hitX, hitY, 16, hitDir, '#60a5fa');
-        addRing(hitX, hitY, 96, '#facc15', 6);
-        addFloatText(enemy.x, enemy.y - 92, 'GUARD BREAK!!', '#facc15', 1.38);
-        sfx.guardBreak();
-        gainEx(20);
-        restoreStamina(25, true);
-        runStats.guardBreaks++;
-        if (enemy.type === 'dummy') setTimeout(() => { if (enemies.includes(enemy)) enemy.hasShield = true; }, 3200);
+        enemy.shieldHp = Math.max(0, (enemy.shieldHp || 1) - (atk === ATTACKS.superFinisher ? 2 : 1));
+        if (enemy.shieldHp > 0) {
+          hitstop = 0.11; shake = 14;
+          addShards(hitX, hitY, 10, hitDir, '#60a5fa');
+          addRing(hitX, hitY, 72, '#38bdf8', 5);
+          addFloatText(enemy.x, enemy.y - 102, '能量盾龟裂! 再蓄力一击!', '#38bdf8', 1.2);
+          sfx.guardBreak();
+          gainEx(8);
+        } else {
+          enemy.hasShield = false;
+          enemy.state = 'stunned';
+          enemy.stateTimer = enemy.type === 'boss_fortress' ? 4.2 : 2.6;
+          if (enemy.type === 'boss_fortress') enemy.shieldRegenTimer = 6.2;
+          dmg = Math.round(dmg * (enemy.type === 'boss_fortress' ? 1.5 : 1.25));
+          hitstop = 0.16; shake = 20;
+          slowMoTimer = 0.24; slowMoScale = 0.25;
+          triggerZoom(1.09, 0.95);
+          addShards(hitX, hitY, 18, hitDir, '#60a5fa');
+          addRing(hitX, hitY, 108, '#facc15', 6);
+          addFloatText(enemy.x, enemy.y - 102, enemy.type === 'boss_fortress' ? '核心过热暴露!! 1.7x伤害' : 'GUARD BREAK!!', '#facc15', 1.38);
+          sfx.guardBreak();
+          gainEx(10);
+          restoreStamina(25, true);
+          runStats.guardBreaks++;
+          if (enemy.type === 'dummy') setTimeout(() => { if (enemies.includes(enemy)) { enemy.hasShield = true; enemy.shieldHp = 1; } }, 3200);
+        }
       } else {
         sfx.hit(atk.power);
         if (atk.zoom) triggerZoom(atk.zoom, atk.power >= 2 ? 0.65 : 0);
@@ -1030,6 +1132,7 @@
           const ldmg = 22 * hasUpgrade('thunder');
           if (enemy.type !== 'dummy') enemy.hp = Math.max(0, enemy.hp - ldmg);
           addLightning(enemy.x, 10, enemy.y - enemy.h * 0.5);
+          flashEnvLight(enemy.x, enemy.y - 60, '#38bdf8', 0.48);
           addSparks(enemy.x, enemy.y - 36, 12, 0, -1, '#38bdf8', 320, 3.5);
           addFloatText(enemy.x, enemy.y - enemy.h - 32, `⚡${ldmg}`, '#38bdf8', 1.15);
           sfx.lightning();
@@ -1050,12 +1153,41 @@
         slowMoScale = Math.min(slowMoScale, enemy.isBoss ? 0.2 : 0.35);
         addFloatText(enemy.x, enemy.y - enemy.h - 18, enemy.isBoss ? 'BOSS 击破!!' : 'K.O.!', '#ef4444', enemy.isBoss ? 1.6 : 1.35);
         if (hasUpgrade('vamp')) {
-          const heal = 14 * hasUpgrade('vamp');
+          const heal = 8 * hasUpgrade('vamp');
           player.hp = Math.min(player.maxHp, player.hp + heal);
-          restoreStamina(25 * hasUpgrade('vamp'), false);
+          restoreStamina(20 * hasUpgrade('vamp'), false);
           addFloatText(player.x, player.y - 78, `+${heal} HP +SP`, '#22c55e', 0.95);
         }
-        if (Math.random() < 0.28 || enemy.isBoss) {
+        // Twin Boss Synergy Awakening when one twin falls!
+        if (enemy.type === 'boss_twin_fire' || enemy.type === 'boss_twin_ice') {
+          const sibling = enemies.find(a => a !== enemy && a.state !== 'dead' && (a.type === 'boss_twin_fire' || a.type === 'boss_twin_ice'));
+          if (sibling) {
+            sibling.phase = 2;
+            sibling.hp = Math.min(sibling.maxHp, sibling.hp + Math.round(sibling.maxHp * 0.22));
+            sibling.dmg = Math.round(sibling.dmg * 1.32);
+            sibling.speed = Math.round(sibling.speed * 1.22);
+            sibling.posture = sibling.maxPosture;
+            triggerShake(18, 0, 0);
+            flashEnvLight(sibling.x, sibling.y - 50, '#facc15', 0.65);
+            addRing(sibling.x, sibling.y - 40, 150, '#facc15', 6);
+            addFloatText(sibling.x, sibling.y - 98, '双生共鸣 · 孤煞觉醒!!', '#facc15', 1.4);
+            sfx.explosion();
+          }
+        }
+        // Killing a Buffer Shaman breaks buffs on all allies!
+        if (enemy.type === 'buffer') {
+          let disrupted = false;
+          for (const ally of enemies) {
+            if (ally !== enemy && ally.state !== 'dead' && ally.buffTimer > 0) {
+              ally.buffTimer = 0;
+              ally.state = 'hurt'; ally.stateTimer = 0.5;
+              ally.flashTimer = 0.1;
+              disrupted = true;
+            }
+          }
+          if (disrupted) addFloatText(enemy.x, enemy.y - 96, '战鼓溃散! 敌群削弱!', '#facc15', 1.25);
+        }
+        if (Math.random() < 0.24 || enemy.isBoss) {
           spawnPickup(player.hp < player.maxHp * 0.65 ? 'heal' : 'ex', enemy.x, enemy.y - 28);
         }
       }
@@ -1067,28 +1199,29 @@
         player.state = 'idle';
         player.parryTimer = 0;
         player.parryCooldown = 0.08;
-        player.invulnTimer = 0.45;
-        gainEx(32);
-        restoreStamina(hasUpgrade('parryking') ? player.maxSp : 50, true);
+        player.invulnTimer = 0.42;
+        gainEx(16);
+        restoreStamina(hasUpgrade('parryking') ? player.maxSp : 45, true);
         runStats.parries++;
-        const healAmt = 10 + hasUpgrade('parryking') * 15;
+        const healAmt = 5 + hasUpgrade('parryking') * 10;
         player.hp = Math.min(player.maxHp, player.hp + healAmt);
         triggerHitStop(0.14);
         triggerShake(15, -fromDir, 0);
         triggerZoom(1.08, 0.9);
         slowMoTimer = 0.25; slowMoScale = 0.28;
         addRing(player.x + player.dir * 14, player.y - 34, 105, '#facc15', 6);
+        flashEnvLight(player.x + player.dir * 14, player.y - 34, '#facc15', 0.5);
         addSparks(player.x + player.dir * 14, player.y - 34, 22, -fromDir, -0.3, '#facc15', 420, 4.5);
         addFloatText(player.x, player.y - 88, 'PERFECT PARRY!! +SP', '#facc15', 1.32);
         sfx.parry();
         if (attacker && attacker.state !== 'dead') {
           attacker.state = 'stunned';
-          attacker.stateTimer = attacker.isBoss ? 2.2 : 2.5;
+          attacker.stateTimer = attacker.isBoss ? 1.85 : 2.3;
           attacker.vx = -fromDir * 240;
           attacker.flashTimer = 0.14;
-          if (attacker.isBoss) attacker.posture = Math.max(0, attacker.posture - 55);
+          if (attacker.isBoss) attacker.posture = Math.max(0, attacker.posture - 48);
           if (hasUpgrade('parryking')) {
-            handleAttackHit(attacker, { dmg: 35 * hasUpgrade('parryking'), posture: 30, hitstop: 0.02, kbX: 320, kbY: -180, shake: 8, color: '#22c55e', power: 1.8, exGain: 0 }, true, -fromDir);
+            handleAttackHit(attacker, { dmg: 35 * hasUpgrade('parryking'), posture: 26, hitstop: 0.02, kbX: 320, kbY: -180, shake: 8, color: '#22c55e', power: 1.8, exGain: 0 }, true, -fromDir);
           }
         }
         return 'parried';
@@ -1099,7 +1232,7 @@
       player.hp = Math.max(0, player.hp - dmg);
       player.state = 'hurt';
       player.hurtTimer = 0.28;
-      player.invulnTimer = 0.6;
+      player.invulnTimer = 0.44;
       player.flashTimer = 0.1;
       player.vx = fromDir * 260;
       player.vy = -175;
@@ -1129,20 +1262,40 @@
       const dtC = Math.min(rawDt, 0.04);
 
       // Ambient weather always moves
+      envTime += dtC;
+      wallHitFlash.left = Math.max(0, wallHitFlash.left - dtC * 2.8);
+      wallHitFlash.right = Math.max(0, wallHitFlash.right - dtC * 2.8);
+      envLight.alpha = Math.max(0, envLight.alpha - dtC * 2.4);
+      const targetLb = player.state === 'super' ? 1 : 0;
+      letterboxAmount += (targetLb - letterboxAmount) * Math.min(1, dtC * 12);
+
       const biome = getBiome(wave);
       for (const a of ambientParticles) {
         if (biome === 0) { // Rain
-          a.x -= 130 * a.spd * dtC; a.y += 420 * a.spd * dtC;
-          if (a.y > GROUND_Y) { a.y = -10; a.x = Math.random() * (W + 120); }
+          a.x -= 130 * a.spd * dtC; a.y += 440 * a.spd * dtC;
+          if (a.y > GROUND_Y) {
+            if (Math.random() < 0.35 && rainSplashes.length < 24) {
+              rainSplashes.push({ x: a.x, y: GROUND_Y + 4 + Math.random() * 44, life: 0.28, maxLife: 0.28 });
+            }
+            a.y = -10; a.x = Math.random() * (W + 140);
+          }
         } else if (biome === 1) { // Rising embers
-          a.x += Math.sin(a.phase + performance.now() * 0.003) * 24 * dtC;
-          a.y -= 55 * a.spd * dtC;
-          if (a.y < 0) { a.y = GROUND_Y; a.x = Math.random() * W; }
+          a.x += Math.sin(a.phase + envTime * 2.6) * 28 * dtC;
+          a.y -= 58 * a.spd * dtC;
+          if (a.y < 0) { a.y = GROUND_Y + 10; a.x = Math.random() * W; }
         } else { // Falling petals
-          a.x -= 45 * a.spd * dtC; a.y += 38 * a.spd * dtC;
-          a.phase += dtC * 3;
-          if (a.y > GROUND_Y || a.x < -10) { a.y = -8; a.x = Math.random() * (W + 80); }
+          a.x -= (42 + Math.sin(a.phase) * 18) * a.spd * dtC; a.y += 34 * a.spd * dtC;
+          a.phase += dtC * 3.4;
+          if (a.y > GROUND_Y + 14 || a.x < -12) { a.y = -8; a.x = Math.random() * (W + 100); }
         }
+      }
+      for (let i = rainSplashes.length - 1; i >= 0; i--) {
+        rainSplashes[i].life -= dtC;
+        if (rainSplashes[i].life <= 0) rainSplashes.splice(i, 1);
+      }
+      for (let i = decals.length - 1; i >= 0; i--) {
+        decals[i].life -= dtC;
+        if (decals[i].life <= 0) decals.splice(i, 1);
       }
 
       if (upgradeChoices.length > 0 || gameOver) return; // Pause during upgrade selection or settlement
@@ -1206,6 +1359,7 @@
       updateEnemies(dt);
       updateProjectiles(dt);
       updateShockwaves(dt);
+      updateHazards(dt);
       updateProps(dt);
       updatePickups(dt);
       updateVFX(dt);
@@ -1269,6 +1423,7 @@
       if (player.parryCooldown > 0) player.parryCooldown -= dt;
       if (player.invulnTimer > 0) player.invulnTimer -= dt;
       if (player.flashTimer > 0) player.flashTimer -= dt;
+      if (player.slowTimer > 0) player.slowTimer -= dt;
       if (player.spRegenDelay > 0) player.spRegenDelay -= dt;
       if (player.exhaustedTimer > 0) player.exhaustedTimer -= dt;
 
@@ -1345,6 +1500,8 @@
           if (player.onGround) {
             triggerShake(16, 0, 1);
             addRing(player.x, GROUND_Y - 6, 135, '#f97316', 5);
+            addDecal('crack', player.x, 48);
+            flashEnvLight(player.x, GROUND_Y - 12, '#f97316', 0.42);
             addDust(player.x, GROUND_Y, 14, 0);
             sfx.hit(2.4);
             for (const e of enemies) {
@@ -1390,7 +1547,7 @@
       } else if (player.state === 'charge') {
         if (moveAxis !== 0) player.dir = moveAxis;
       } else {
-        const targetVx = moveAxis * 335;
+        const targetVx = moveAxis * (player.slowTimer > 0 ? 185 : 335);
         player.vx += (targetVx - player.vx) * Math.min(1, dt * 18);
         if (moveAxis !== 0) { player.dir = moveAxis; player.state = 'run'; }
         else player.state = 'idle';
@@ -1430,9 +1587,28 @@
         e.scaleX += (1 - e.scaleX) * Math.min(1, dt * 14);
         e.scaleY += (1 - e.scaleY) * Math.min(1, dt * 14);
 
-        e.vy += GRAVITY * dt;
-        e.x += e.vx * dt;
-        e.y += e.vy * dt;
+        // Hover Boss (Arcane Mage) floats when active, drops to ground when stunned/hurt/dead!
+        if (e.isHover && e.state !== 'stunned' && e.state !== 'hurt' && e.state !== 'dead') {
+          const targetY = GROUND_Y - 76 + Math.sin(e.animTime * 4.2) * 14;
+          e.y += (targetY - e.y) * Math.min(1, dt * 6);
+          e.vy = 0;
+          e.x += e.vx * dt;
+        } else {
+          e.vy += GRAVITY * dt;
+          e.x += e.vx * dt;
+          e.y += e.vy * dt;
+        }
+
+        // Fortress Boss shield recharge
+        if (e.type === 'boss_fortress' && !e.hasShield && e.state !== 'dead' && e.state !== 'stunned') {
+          e.shieldRegenTimer -= dt;
+          if (e.shieldRegenTimer <= 0) {
+            e.hasShield = true; e.shieldHp = 2;
+            addRing(e.x, e.y - 46, 86, '#38bdf8', 5);
+            addFloatText(e.x, e.y - 108, '能量巨盾重构!', '#38bdf8', 1.15);
+            sfx.chargeReady();
+          }
+        }
 
         // Ground collision
         if (e.y >= GROUND_Y) {
@@ -1446,12 +1622,16 @@
               triggerShake(18, 0, 1);
               sfx.explosion();
               addRing(e.x, GROUND_Y - 6, 130, '#ef4444', 5);
-              shockwaves.push({ x: e.x, vx: -340, life: 0.9, maxLife: 0.9, dmg: 16 });
-              shockwaves.push({ x: e.x, vx: 340,  life: 0.9, maxLife: 0.9, dmg: 16 });
-              if (Math.abs(player.x - e.x) < 92 && player.y > GROUND_Y - 35) {
+              addDecal('crack', e.x, 66);
+              flashEnvLight(e.x, GROUND_Y - 14, '#ef4444', 0.55);
+              const swSpd = e.phase >= 2 ? 410 : 340;
+              const swDmg = Math.round(e.dmg * 0.8);
+              shockwaves.push({ x: e.x, vx: -swSpd, life: 0.95, maxLife: 0.95, dmg: swDmg });
+              shockwaves.push({ x: e.x, vx: swSpd,  life: 0.95, maxLife: 0.95, dmg: swDmg });
+              if (Math.abs(player.x - e.x) < 96 && player.y > GROUND_Y - 35) {
                 damagePlayer(e.dmg, player.x >= e.x ? 1 : -1, e);
               }
-              e.state = 'recover'; e.stateTimer = 0.75; e.subAttack = '';
+              e.state = 'recover'; e.stateTimer = e.phase >= 2 ? 0.52 : 0.7; e.subAttack = '';
             }
           }
           if (e.state === 'hurt' || e.state === 'stunned' || e.state === 'dead') e.vx *= Math.pow(0.012, dt);
@@ -1463,16 +1643,19 @@
           e.x = hitLeft ? WALL_L : WALL_R;
           if (e.isBoss && e.state === 'strike' && e.subAttack === 'charge') {
             // Boss crashed into wall -> self stunned!
+            if (hitLeft) wallHitFlash.left = 1; else wallHitFlash.right = 1;
+            flashEnvLight(e.x, e.y - 45, '#facc15', 0.45);
             e.vx = (hitLeft ? 1 : -1) * 180; e.vy = -160;
-            e.state = 'stunned'; e.stateTimer = 2.0; e.subAttack = '';
+            e.state = 'stunned'; e.stateTimer = 1.75; e.subAttack = '';
             triggerShake(16, hitLeft ? -1 : 1, 0); sfx.hit(2.5);
             addFloatText(e.x + (hitLeft ? 50 : -50), e.y - 100, '撞墙眩晕! 快打!', '#facc15', 1.25);
           } else if (Math.abs(e.vx) > 250 && (e.wallBounceArmed || e.state === 'hurt')) {
+            if (hitLeft) wallHitFlash.left = 1; else wallHitFlash.right = 1;
             e.wallBounceArmed = false;
             e.vx = -e.vx * 0.54; e.vy = -275;
             const wbDmg = 12 + hasUpgrade('wallcrush') * 12;
             if (e.type !== 'dummy') e.hp = Math.max(0, e.hp - wbDmg);
-            if (hasUpgrade('wallcrush')) gainEx(18 * hasUpgrade('wallcrush'));
+            if (hasUpgrade('wallcrush')) gainEx(8 * hasUpgrade('wallcrush'));
             applySquash(e, 0.58, 1.42);
             triggerHitStop(0.055);
             triggerShake(11, hitLeft ? -1 : 1, 0);
@@ -1484,6 +1667,29 @@
         }
 
         if (e.state === 'dead') { e.deadAlpha -= dt * 1.3; if (e.deadAlpha <= 0) enemies.splice(i, 1); continue; }
+        if (e.buffTimer > 0) {
+          e.buffTimer -= dt;
+          if (feel.vfx && Math.random() < 0.22) {
+            particles.push({ x: e.x + (Math.random() - 0.5) * e.w, y: e.y - 10 - Math.random() * e.h * 0.7, vx: 0, vy: -55, life: 0.24, maxLife: 0.24, color: '#ef4444', size: 3.5, gravity: -30, kind: 'dust' });
+          }
+        }
+
+        // Boss Phase 2 Awakening at <= 50% HP! (Twins awaken via sibling death instead)
+        if (e.isBoss && e.type !== 'boss_twin_fire' && e.type !== 'boss_twin_ice' && e.phase === 1 && e.hp <= e.maxHp * 0.5) {
+          e.phase = 2;
+          e.speed = Math.round(e.speed * 1.24);
+          e.posture = e.maxPosture;
+          triggerShake(18, 0, 0);
+          triggerZoom(1.07, 0.85);
+          flashEnvLight(e.x, e.y - 50, '#ef4444', 0.65);
+          addRing(e.x, e.y - 45, 160, '#ef4444', 6);
+          sfx.explosion();
+          const p2Title = e.type === 'boss_ninja' ? '二阶段 · 影分身觉醒!!'
+            : e.type === 'boss_mage' ? '二阶段 · 雷穹天罚!!'
+            : e.type === 'boss_fortress' ? '二阶段 · 过载炮火!!'
+            : '二阶段 · 狂暴熔炉!!';
+          addFloatText(e.x, e.y - e.h - 24, p2Title, '#ef4444', 1.35);
+        }
 
         // Dummy & Turret Dummy
         if (e.type === 'dummy') {
@@ -1496,7 +1702,7 @@
             e.turretTimer -= dt;
             if (e.turretTimer <= 0) {
               e.turretTimer = 2.6;
-              projectiles.push({ x: e.x + e.dir * 22, y: e.y - 36, vx: e.dir * 340, dmg: 10, friendly: false, owner: e, rot: 0 });
+              projectiles.push({ x: e.x + e.dir * 22, y: e.y - 36, vx: e.dir * 340, dmg: 14, friendly: false, owner: e, rot: 0 });
               sfx.whoosh(1.5);
             }
           }
@@ -1506,96 +1712,439 @@
         // Hurt / Stunned recovery
         if (e.state === 'hurt' || e.state === 'stunned') {
           e.stateTimer -= dt;
-          if (e.stateTimer <= 0 && e.y >= GROUND_Y) { e.state = 'idle'; e.aiCooldown = 0.35; }
+          if (e.stateTimer <= 0 && e.y >= GROUND_Y) { e.state = 'idle'; e.aiCooldown = 0.28; }
           continue;
         }
 
         const dist = player.x - e.x;
         const absDist = Math.abs(dist);
+        const effDmg = e.buffTimer > 0 ? Math.round(e.dmg * 1.35) : e.dmg;
+        const effSpeed = e.buffTimer > 0 ? e.speed * 1.28 : e.speed;
 
-        // BOSS AI
-        if (e.isBoss) {
+        // ==================== BOSS A: STEEL TITAN AI ====================
+        if (e.type === 'boss') {
           if (e.state === 'windup') {
             e.vx *= Math.pow(0.04, dt);
             e.stateTimer -= dt;
             if (e.stateTimer <= 0) {
               e.state = 'strike';
               if (e.subAttack === 'slam') {
-                e.vy = -590; e.vx = e.dir * Math.min(340, absDist * 1.1);
+                e.vy = -610; e.vx = e.dir * Math.min(380, absDist * 1.15);
                 e.stateTimer = 1.4; sfx.whoosh(0.6);
               } else if (e.subAttack === 'charge') {
-                e.vx = e.dir * 520; e.stateTimer = 0.65; sfx.whoosh(0.5);
+                e.vx = e.dir * (e.phase >= 2 ? 600 : 530); e.stateTimer = 0.65; sfx.whoosh(0.5);
+              } else if (e.subAttack === 'eruption') {
+                // Summon 3 staggered magma pillars!
+                triggerShake(14, 0, 1); sfx.hit(2.5); addDecal('crack', e.x, 46);
+                const count = e.phase >= 2 ? 4 : 3;
+                for (let k = 0; k < count; k++) {
+                  const px = Math.max(WALL_L + 30, Math.min(WALL_R - 30, player.x + (k - Math.floor(count / 2)) * 95 + (Math.random() - 0.5) * 35));
+                  hazards.push({ kind: 'pillar', x: px, timer: 0.62 + k * 0.22, maxTimer: 0.62 + k * 0.22, activeTimer: 0.26, dmg: Math.round(e.dmg * 0.9), hit: false });
+                }
+                e.stateTimer = 0.42;
               } else {
-                e.vx = e.dir * 240; e.stateTimer = 0.16; sfx.whoosh(0.75);
-                if (absDist < 96 && Math.abs(player.y - e.y) < 68) damagePlayer(e.dmg, e.dir, e);
+                e.vx = e.dir * 265; e.stateTimer = 0.16; sfx.whoosh(0.75);
+                if (absDist < 100 && Math.abs(player.y - e.y) < 70) damagePlayer(effDmg, e.dir, e);
               }
             }
           } else if (e.state === 'strike') {
             e.stateTimer -= dt;
             if (e.subAttack === 'charge') {
-              if (Math.random() < 0.7) addDust(e.x, GROUND_Y, 2, -e.dir);
-              if (absDist < 54 && Math.abs(player.y - e.y) < 62) damagePlayer(e.dmg, e.dir, e);
+              if (Math.random() < 0.75) addDust(e.x, GROUND_Y, 2, -e.dir);
+              if (absDist < 58 && Math.abs(player.y - e.y) < 64) damagePlayer(effDmg, e.dir, e);
             }
-            if (e.stateTimer <= 0) { e.state = 'recover'; e.stateTimer = 0.65; e.subAttack = ''; }
+            if (e.stateTimer <= 0) {
+              // Phase 2 Double-Swing follow-up!
+              if (e.subAttack === 'punch' && e.comboLeft > 0) {
+                e.comboLeft--;
+                e.dir = player.x >= e.x ? 1 : -1;
+                e.state = 'windup'; e.stateTimer = 0.26;
+                applySquash(e, 1.2, 0.85);
+              } else {
+                e.state = 'recover'; e.stateTimer = e.phase >= 2 ? 0.42 : 0.56; e.subAttack = '';
+              }
+            }
           } else if (e.state === 'recover') {
             e.vx *= Math.pow(0.04, dt); e.stateTimer -= dt;
-            if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = 0.5; }
+            if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = e.phase >= 2 ? 0.28 : 0.42; }
           } else {
             e.dir = dist >= 0 ? 1 : -1;
             e.aiCooldown -= dt;
-            if (absDist > 92) e.vx += (e.dir * e.speed - e.vx) * Math.min(1, dt * 7);
+            if (absDist > 92) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 7);
             else e.vx *= Math.pow(0.05, dt);
             if (e.aiCooldown <= 0) {
               const r = Math.random();
               e.state = 'windup';
-              if (absDist > 210 && r < 0.55) { e.subAttack = 'charge'; e.stateTimer = 0.65; addFloatText(e.x, e.y - 108, '狂暴冲撞! (弹反/跳躲)', '#ef4444', 1.0); }
-              else if (r < 0.45) { e.subAttack = 'slam'; e.stateTimer = 0.55; addFloatText(e.x, e.y - 108, '泰山压顶! (跳躲震荡波)', '#f97316', 1.0); }
-              else { e.subAttack = 'punch'; e.stateTimer = 0.48; }
+              if (absDist > 210 && r < 0.42) { e.subAttack = 'charge'; e.stateTimer = e.phase >= 2 ? 0.5 : 0.6; addFloatText(e.x, e.y - 108, '狂暴冲撞!', '#ef4444', 1.05); }
+              else if (r < 0.65) { e.subAttack = 'eruption'; e.stateTimer = 0.48; addFloatText(e.x, e.y - 108, '熔岩地裂! (走位躲避)', '#f97316', 1.05); }
+              else if (r < 0.84) { e.subAttack = 'slam'; e.stateTimer = 0.5; addFloatText(e.x, e.y - 108, '泰山压顶! (跳躲)', '#f97316', 1.05); }
+              else { e.subAttack = 'punch'; e.comboLeft = e.phase >= 2 ? 1 : 0; e.stateTimer = e.phase >= 2 ? 0.38 : 0.44; }
               applySquash(e, 1.2, 0.84);
             }
           }
           continue;
         }
 
-        // REGULAR ENEMY AI
+        // ==================== BOSS B: SHADOW BLADE MASTER (NINJA BOSS) AI ====================
+        if (e.type === 'boss_ninja') {
+          if (e.state === 'windup') {
+            e.vx *= Math.pow(0.04, dt);
+            e.stateTimer -= dt;
+            if (e.stateTimer <= 0) {
+              e.state = 'strike';
+              if (e.subAttack === 'blink') {
+                // Vanish & teleport behind player!
+                addRing(e.x, e.y - 36, 48, '#a855f7', 3);
+                const behindX = Math.max(WALL_L + 36, Math.min(WALL_R - 36, player.x - player.dir * 58));
+                e.x = behindX;
+                e.dir = player.x >= e.x ? 1 : -1;
+                addRing(e.x, e.y - 36, 56, '#f43f5e', 4);
+                e.subAttack = 'blinkSlash';
+                e.state = 'windup';
+                e.stateTimer = e.phase >= 2 ? 0.28 : 0.35; // Crisp reaction window for Parry!
+                sfx.whoosh(1.8);
+              } else if (e.subAttack === 'blinkSlash') {
+                e.vx = e.dir * 340; e.stateTimer = 0.14;
+                addArc(e.x + e.dir * 32, e.y - 38, e.dir, 'kick', '#f43f5e');
+                sfx.whoosh(1.4);
+                if (Math.abs(player.x - e.x) < 92 && Math.abs(player.y - e.y) < 62) damagePlayer(effDmg, e.dir, e);
+              } else if (e.subAttack === 'shurikenRain') {
+                e.vy = -520; e.vx = -e.dir * 160;
+                const cnt = e.phase >= 2 ? 4 : 3;
+                for (let k = 0; k < cnt; k++) {
+                  const spd = 390 + k * 55;
+                  projectiles.push({ x: e.x + e.dir * 20, y: e.y - 44 - k * 14, vx: e.dir * spd, dmg: Math.round(effDmg * 0.72), friendly: false, owner: e, rot: 0 });
+                }
+                sfx.whoosh(1.7);
+                e.stateTimer = 0.35;
+              } else if (e.subAttack === 'iai') {
+                // Ultra-fast full-stage crimson flash dash!
+                const startX = e.x;
+                const endX = e.dir === 1 ? WALL_R - 40 : WALL_L + 40;
+                for (let s = 0; s < 5; s++) {
+                  afterimages.push({ x: startX + (endX - startX) * (s / 5), y: e.y, vx: e.dir * 500, dir: e.dir, scaleX: 1.4, scaleY: 0.75, state: 'strike', attackKey: null, animTime: e.animTime, color: '#f43f5e', life: 0.24, maxLife: 0.24 });
+                }
+                e.x = endX;
+                sfx.lightning();
+                triggerShake(14, e.dir, 0);
+                flashEnvLight(W / 2, GROUND_Y - 36, '#f43f5e', 0.5);
+                // Hit player if standing on ground in slash path!
+                const minX = Math.min(startX, endX), maxX = Math.max(startX, endX);
+                if (player.x >= minX - 20 && player.x <= maxX + 20 && player.y > GROUND_Y - 46) {
+                  damagePlayer(Math.round(effDmg * 1.15), e.dir, e);
+                }
+                e.stateTimer = 0.24;
+              }
+            }
+          } else if (e.state === 'strike') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) {
+              if (e.subAttack === 'blinkSlash' && e.comboLeft > 0) {
+                e.comboLeft--;
+                e.subAttack = 'blink'; e.state = 'windup'; e.stateTimer = 0.22;
+              } else {
+                e.state = 'recover'; e.stateTimer = e.phase >= 2 ? 0.36 : 0.48; e.subAttack = '';
+              }
+            }
+          } else if (e.state === 'recover') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = e.phase >= 2 ? 0.24 : 0.38; }
+          } else {
+            e.dir = dist >= 0 ? 1 : -1;
+            e.aiCooldown -= dt;
+            if (absDist > 120) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 9);
+            else e.vx *= Math.pow(0.05, dt);
+            if (e.aiCooldown <= 0) {
+              const r = Math.random();
+              e.state = 'windup';
+              if (r < 0.38) {
+                e.subAttack = 'blink'; e.comboLeft = e.phase >= 2 ? 1 : 0; e.stateTimer = 0.28;
+                addFloatText(e.x, e.y - 90, '瞬步背刺! (准备弹反)', '#c084fc', 1.05);
+              } else if (r < 0.7) {
+                e.subAttack = 'iai'; e.stateTimer = e.phase >= 2 ? 0.46 : 0.56;
+                hazards.push({ kind: 'slashLine', y: GROUND_Y - 34, timer: e.stateTimer, maxTimer: e.stateTimer });
+                addFloatText(e.x, e.y - 90, '居合绝闪! (跳跃/弹反)', '#f43f5e', 1.05);
+              } else {
+                e.subAttack = 'shurikenRain'; e.stateTimer = 0.36;
+                addFloatText(e.x, e.y - 90, '苦无乱舞! (按I反弹)', '#38bdf8', 1.0);
+              }
+              applySquash(e, 1.18, 0.84);
+            }
+          }
+          continue;
+        }
+
+        // ==================== BOSS C: ARCANE THUNDER MAGE AI ====================
+        if (e.type === 'boss_mage') {
+          if (e.state === 'windup') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) {
+              e.state = 'strike';
+              if (e.subAttack === 'thunderGrid') {
+                const count = e.phase >= 2 ? 5 : 3;
+                for (let k = 0; k < count; k++) {
+                  const tx = Math.max(WALL_L + 40, Math.min(WALL_R - 40, player.x + (k - Math.floor(count / 2)) * 118 + (Math.random() - 0.5) * 30));
+                  hazards.push({ kind: 'lightningStrike', x: tx, timer: 0.64 + k * 0.14, maxTimer: 0.64 + k * 0.14, activeTimer: 0.24, dmg: effDmg, hit: false });
+                }
+                sfx.whoosh(1.6); e.stateTimer = 0.4;
+              } else if (e.subAttack === 'orbs') {
+                const cnt = e.phase >= 2 ? 3 : 2;
+                for (let k = 0; k < cnt; k++) {
+                  projectiles.push({ kind: 'orb', homing: true, x: e.x + e.dir * 26, y: e.y - 50 - k * 20, vx: e.dir * (195 + k * 35), vy: -20 + k * 35, dmg: Math.round(effDmg * 0.85), friendly: false, owner: e, rot: 0, life: 4.5 });
+                }
+                sfx.chargeReady(); e.stateTimer = 0.35;
+              } else if (e.subAttack === 'nova') {
+                // Repulse Nova + Teleport to opposite side!
+                hazards.push({ kind: 'nova', x: e.x, y: e.y - 38, r: 16, maxR: 155, life: 0.3, maxLife: 0.3, dmg: effDmg, hit: false });
+                sfx.lightning(); triggerShake(12, 0, 0);
+                const farX = player.x < W / 2 ? WALL_R - 110 : WALL_L + 110;
+                e.x = farX;
+                addRing(e.x, e.y - 40, 62, '#38bdf8', 4);
+                e.stateTimer = 0.35;
+              }
+            }
+          } else if (e.state === 'strike') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) { e.state = 'recover'; e.stateTimer = e.phase >= 2 ? 0.36 : 0.52; e.subAttack = ''; }
+          } else if (e.state === 'recover') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = e.phase >= 2 ? 0.28 : 0.44; }
+          } else {
+            e.dir = dist >= 0 ? 1 : -1; e.aiCooldown -= dt;
+            // Maintain mid-far hovering distance
+            if (absDist < 210) e.vx += (-e.dir * effSpeed - e.vx) * Math.min(1, dt * 6);
+            else if (absDist > 380) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 6);
+            else e.vx *= Math.pow(0.06, dt);
+            if (e.aiCooldown <= 0) {
+              const r = Math.random();
+              e.state = 'windup';
+              if (absDist < 145) { e.subAttack = 'nova'; e.stateTimer = 0.44; addFloatText(e.x, e.y - 96, '磁暴斥力! 速退!', '#38bdf8', 1.05); }
+              else if (r < 0.52) { e.subAttack = 'orbs'; e.stateTimer = 0.45; addFloatText(e.x, e.y - 96, '电浆雷球! (按I反弹击落)', '#38bdf8', 1.0); }
+              else { e.subAttack = 'thunderGrid'; e.stateTimer = 0.52; addFloatText(e.x, e.y - 96, '天罚落雷阵! (走位躲避)', '#facc15', 1.05); }
+              applySquash(e, 1.15, 0.88);
+            }
+          }
+          continue;
+        }
+
+        // ==================== BOSS D: SHIELD FORTRESS MECH AI ====================
+        if (e.type === 'boss_fortress') {
+          if (e.state === 'windup') {
+            e.vx *= Math.pow(0.04, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) {
+              e.state = 'strike';
+              if (e.subAttack === 'shieldBash') {
+                e.vx = e.dir * (e.phase >= 2 ? 490 : 410); e.stateTimer = 0.58; sfx.whoosh(0.5);
+              } else if (e.subAttack === 'mortar') {
+                const cnt = e.phase >= 2 ? 5 : 3;
+                for (let k = 0; k < cnt; k++) {
+                  const targetX = Math.max(WALL_L + 40, Math.min(WALL_R - 40, player.x + (k - Math.floor(cnt / 2)) * 90 + (Math.random() - 0.5) * 35));
+                  const flightT = 0.72 + k * 0.14;
+                  const vx = (targetX - e.x) / flightT;
+                  const vy = -0.5 * GRAVITY * flightT;
+                  projectiles.push({ kind: 'bomb', gravity: true, x: e.x, y: e.y - 78, vx, vy, dmg: Math.round(effDmg * 0.9), friendly: false, owner: e, rot: 0 });
+                }
+                sfx.whoosh(0.7); e.stateTimer = 0.45;
+              } else if (e.subAttack === 'beam') {
+                // Horizontal pulse laser beam!
+                hazards.push({ kind: 'beam', x: e.x + e.dir * 26, y: GROUND_Y - 38, dir: e.dir, life: 0.36, maxLife: 0.36, dmg: Math.round(effDmg * 1.1), hit: false });
+                sfx.lightning(); triggerShake(12, e.dir, 0);
+                e.stateTimer = 0.4;
+              }
+            }
+          } else if (e.state === 'strike') {
+            e.stateTimer -= dt;
+            if (e.subAttack === 'shieldBash') {
+              if (Math.random() < 0.7) addDust(e.x, GROUND_Y, 2, -e.dir);
+              if (absDist < 62 && Math.abs(player.y - e.y) < 66) damagePlayer(effDmg, e.dir, e);
+            }
+            if (e.stateTimer <= 0) {
+              if (e.subAttack === 'shieldBash' && e.comboLeft > 0) {
+                e.comboLeft--; e.dir = player.x >= e.x ? 1 : -1; e.state = 'windup'; e.stateTimer = 0.34;
+              } else {
+                e.state = 'recover'; e.stateTimer = e.phase >= 2 ? 0.45 : 0.62; e.subAttack = '';
+              }
+            }
+          } else if (e.state === 'recover') {
+            e.vx *= Math.pow(0.04, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = e.phase >= 2 ? 0.32 : 0.48; }
+          } else {
+            e.dir = dist >= 0 ? 1 : -1; e.aiCooldown -= dt;
+            if (absDist > 115) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 6);
+            else e.vx *= Math.pow(0.05, dt);
+            if (e.aiCooldown <= 0) {
+              const r = Math.random();
+              e.state = 'windup';
+              if (r < 0.38) {
+                e.subAttack = 'shieldBash'; e.comboLeft = e.phase >= 2 ? 1 : 0; e.stateTimer = 0.52;
+                addFloatText(e.x, e.y - 110, '重盾碾压! (弹反/绕后)', '#60a5fa', 1.05);
+              } else if (r < 0.72) {
+                e.subAttack = 'mortar'; e.stateTimer = 0.5;
+                addFloatText(e.x, e.y - 110, '榴弹齐射! (躲避落点)', '#f97316', 1.05);
+              } else {
+                e.subAttack = 'beam'; e.stateTimer = 0.58;
+                hazards.push({ kind: 'slashLine', y: GROUND_Y - 38, timer: 0.58, maxTimer: 0.58 });
+                addFloatText(e.x, e.y - 110, '脉冲激光! (跳跃躲避)', '#ef4444', 1.05);
+              }
+              applySquash(e, 1.18, 0.86);
+            }
+          }
+          continue;
+        }
+
+        // ==================== BOSS E: TWIN BOSSES (FIRE & ICE SYNERGY) AI ====================
+        if (e.type === 'boss_twin_fire' || e.type === 'boss_twin_ice') {
+          const isFire = e.type === 'boss_twin_fire';
+          if (e.state === 'windup') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) {
+              e.state = 'strike';
+              if (e.subAttack === 'flameDash') {
+                e.vx = e.dir * 520; e.stateTimer = 0.38; sfx.whoosh(0.75);
+                addArc(e.x + e.dir * 26, e.y - 36, e.dir, 'mega', '#f97316');
+                addDecal('scorch', e.x, 30);
+              } else if (e.subAttack === 'fireUpper') {
+                e.vx = e.dir * 240; e.vy = -420; e.stateTimer = 0.25; sfx.whoosh(0.9);
+                addArc(e.x + e.dir * 24, e.y - 40, e.dir, 'upper', '#f97316');
+                if (absDist < 84 && Math.abs(player.y - e.y) < 76) damagePlayer(effDmg, e.dir, e);
+              } else if (e.subAttack === 'iceVolley') {
+                const cnt = e.phase >= 2 ? 4 : 3;
+                for (let k = 0; k < cnt; k++) {
+                  projectiles.push({ kind: 'ice', x: e.x + e.dir * 22, y: e.y - 32 - k * 14, vx: e.dir * (375 + k * 42), dmg: Math.round(effDmg * 0.85), friendly: false, owner: e, rot: 0 });
+                }
+                sfx.whoosh(1.7); e.stateTimer = 0.3;
+              } else if (e.subAttack === 'frostZone') {
+                hazards.push({ kind: 'frost', x: player.x, r: 82, life: 4.5, maxLife: 4.5, tick: 0.4, dmg: Math.round(effDmg * 0.55) });
+                sfx.chargeReady(); addRing(player.x, GROUND_Y - 4, 86, '#22d3ee', 4);
+                e.stateTimer = 0.32;
+              }
+            }
+          } else if (e.state === 'strike') {
+            e.stateTimer -= dt;
+            if (e.subAttack === 'flameDash') {
+              if (Math.random() < 0.7) addSparks(e.x, e.y - 24, 2, -e.dir, -0.3, '#f97316', 180, 3);
+              if (absDist < 54 && Math.abs(player.y - e.y) < 58) damagePlayer(effDmg, e.dir, e);
+            }
+            if (e.stateTimer <= 0) { e.state = 'recover'; e.stateTimer = e.phase >= 2 ? 0.34 : 0.48; e.subAttack = ''; }
+          } else if (e.state === 'recover') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = e.phase >= 2 ? 0.25 : 0.42; }
+          } else {
+            e.dir = dist >= 0 ? 1 : -1; e.aiCooldown -= dt;
+            if (isFire) {
+              if (absDist > 80) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 8);
+              else e.vx *= Math.pow(0.05, dt);
+            } else {
+              if (absDist < 190) e.vx += (-e.dir * effSpeed - e.vx) * Math.min(1, dt * 7);
+              else if (absDist > 330) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 7);
+              else e.vx *= Math.pow(0.05, dt);
+            }
+            if (e.aiCooldown <= 0) {
+              const r = Math.random();
+              e.state = 'windup';
+              if (isFire) {
+                if (e.phase >= 2 && r < 0.3) { e.subAttack = 'iceVolley'; e.stateTimer = 0.38; addFloatText(e.x, e.y - 88, '共鸣冰锥!', '#22d3ee', 1.0); }
+                else if (absDist > 130 || r < 0.55) { e.subAttack = 'flameDash'; e.stateTimer = 0.42; addFloatText(e.x, e.y - 88, '烈焰突进!', '#f97316', 1.0); }
+                else { e.subAttack = 'fireUpper'; e.stateTimer = 0.36; }
+              } else {
+                if (e.phase >= 2 && r < 0.32) { e.subAttack = 'flameDash'; e.stateTimer = 0.4; addFloatText(e.x, e.y - 88, '共鸣焰冲!', '#f97316', 1.0); }
+                else if (r < 0.55) { e.subAttack = 'iceVolley'; e.stateTimer = 0.42; addFloatText(e.x, e.y - 88, '寒冰齐射! (可弹反)', '#22d3ee', 1.0); }
+                else { e.subAttack = 'frostZone'; e.stateTimer = 0.46; addFloatText(e.x, e.y - 88, '霜冻减速阵!', '#22d3ee', 1.0); }
+              }
+              applySquash(e, 1.18, 0.85);
+            }
+          }
+          continue;
+        }
+
+        // ==================== REGULAR & BUFFER ENEMY AI ====================
+        if (e.type === 'buffer') {
+          e.dir = dist >= 0 ? 1 : -1;
+          e.drumCooldown -= dt;
+          if (e.state === 'windup') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) {
+              // Cast War Drum Buff to all allies!
+              addRing(e.x, e.y - 36, 170, '#f59e0b', 5);
+              flashEnvLight(e.x, e.y - 36, '#f59e0b', 0.36);
+              sfx.chargeReady();
+              let buffed = 0, lowestAlly = null;
+              for (const ally of enemies) {
+                if (ally !== e && ally.state !== 'dead') {
+                  ally.buffTimer = 5.5;
+                  buffed++;
+                  if (!lowestAlly || (ally.hp / ally.maxHp) < (lowestAlly.hp / lowestAlly.maxHp)) lowestAlly = ally;
+                }
+              }
+              if (lowestAlly && lowestAlly.hp < lowestAlly.maxHp) {
+                const hAmt = Math.round(lowestAlly.maxHp * 0.16);
+                lowestAlly.hp = Math.min(lowestAlly.maxHp, lowestAlly.hp + hAmt);
+                addFloatText(lowestAlly.x, lowestAlly.y - 78, `+${hAmt} HP`, '#22c55e', 0.9);
+              }
+              addFloatText(e.x, e.y - 84, buffed > 0 ? '战鼓狂暴! 全队ATK+35%' : '战鼓蓄势!', '#facc15', 1.05);
+              e.state = 'recover'; e.stateTimer = 0.45; e.drumCooldown = 4.2;
+            }
+          } else if (e.state === 'recover') {
+            e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
+            if (e.stateTimer <= 0) e.state = 'idle';
+          } else {
+            // Keep safe distance behind frontliners
+            if (absDist < 230) e.vx += (-e.dir * e.speed - e.vx) * Math.min(1, dt * 8);
+            else if (absDist > 360) e.vx += (e.dir * e.speed * 0.7 - e.vx) * Math.min(1, dt * 6);
+            else e.vx *= Math.pow(0.05, dt);
+            if (e.drumCooldown <= 0) {
+              e.state = 'windup'; e.stateTimer = 0.62;
+              applySquash(e, 1.15, 0.88);
+            }
+          }
+          continue;
+        }
+
         if (e.state === 'windup') {
           e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
           if (e.stateTimer <= 0) {
             e.state = 'strike'; e.stateTimer = 0.14;
             if (e.type === 'striker') {
-              projectiles.push({ x: e.x + e.dir * 20, y: e.y - 36, vx: e.dir * 380, dmg: e.dmg, friendly: false, owner: e, rot: 0 });
+              projectiles.push({ x: e.x + e.dir * 20, y: e.y - 36, vx: e.dir * 405, dmg: effDmg, friendly: false, owner: e, rot: 0 });
+              if (wave >= 4 || e.buffTimer > 0) {
+                projectiles.push({ x: e.x + e.dir * 10, y: e.y - 52, vx: e.dir * 355, dmg: effDmg, friendly: false, owner: e, rot: 0 });
+              }
               sfx.whoosh(1.6);
             } else {
-              e.vx = e.dir * (e.type === 'acrobat' ? 320 : e.isHeavy ? 235 : 185);
-              if (e.type === 'acrobat' && e.y >= GROUND_Y) e.vy = -240;
+              e.vx = e.dir * (e.type === 'acrobat' ? 340 : e.isHeavy ? 255 : 205);
+              if (e.type === 'acrobat' && e.y >= GROUND_Y) e.vy = -250;
               sfx.whoosh(0.95);
-              if (absDist < (e.isHeavy ? 80 : 66) && Math.abs(player.y - e.y) < 58) damagePlayer(e.dmg, e.dir, e);
+              if (absDist < (e.isHeavy ? 84 : 68) && Math.abs(player.y - e.y) < 58) damagePlayer(effDmg, e.dir, e);
             }
           }
         } else if (e.state === 'strike') {
           e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
-          if (e.stateTimer <= 0) { e.state = 'recover'; e.stateTimer = e.isHeavy ? 0.55 : 0.4; }
+          if (e.stateTimer <= 0) { e.state = 'recover'; e.stateTimer = e.isHeavy ? 0.45 : 0.34; }
         } else if (e.state === 'recover') {
           e.vx *= Math.pow(0.05, dt); e.stateTimer -= dt;
-          if (e.stateTimer <= 0) { e.state = 'idle'; e.aiCooldown = 0.35 + Math.random() * 0.45; }
+          if (e.stateTimer <= 0) {
+            const cd = (0.26 + Math.random() * 0.32) * (e.buffTimer > 0 ? 0.72 : 1);
+            e.state = 'idle'; e.aiCooldown = cd;
+          }
         } else {
           e.dir = dist >= 0 ? 1 : -1;
           e.aiCooldown -= dt;
           if (e.type === 'striker') {
-            const ideal = 250;
-            if (absDist < 170) e.vx += (-e.dir * e.speed - e.vx) * Math.min(1, dt * 7);
-            else if (absDist > ideal + 40) e.vx += (e.dir * e.speed - e.vx) * Math.min(1, dt * 7);
+            const ideal = 255;
+            if (absDist < 175) e.vx += (-e.dir * effSpeed - e.vx) * Math.min(1, dt * 7);
+            else if (absDist > ideal + 40) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 7);
             else e.vx *= Math.pow(0.05, dt);
-            if (e.aiCooldown <= 0 && absDist < 420) {
-              e.state = 'windup'; e.stateTimer = 0.48; applySquash(e, 1.16, 0.88);
+            if (e.aiCooldown <= 0 && absDist < 440) {
+              e.state = 'windup'; e.stateTimer = e.buffTimer > 0 ? 0.36 : 0.44; applySquash(e, 1.16, 0.88);
             }
           } else {
-            const range = e.type === 'acrobat' ? 110 : e.isHeavy ? 72 : 60;
-            if (absDist > range) e.vx += (e.dir * e.speed - e.vx) * Math.min(1, dt * 8);
+            const range = e.type === 'acrobat' ? 118 : e.isHeavy ? 76 : 62;
+            if (absDist > range) e.vx += (e.dir * effSpeed - e.vx) * Math.min(1, dt * 8);
             else {
               e.vx *= Math.pow(0.05, dt);
               if (e.aiCooldown <= 0) {
-                e.state = 'windup'; e.stateTimer = e.isHeavy ? 0.52 : e.type === 'acrobat' ? 0.36 : 0.42;
+                const wu = (e.isHeavy ? 0.46 : e.type === 'acrobat' ? 0.31 : 0.36) * (e.buffTimer > 0 ? 0.82 : 1);
+                e.state = 'windup'; e.stateTimer = wu;
                 applySquash(e, 1.18, 0.86);
               }
             }
@@ -1604,19 +2153,115 @@
       }
     }
 
+    function updateHazards(dt) {
+      for (let i = hazards.length - 1; i >= 0; i--) {
+        const h = hazards[i];
+        if (h.kind === 'slashLine') {
+          h.timer -= dt;
+          if (h.timer <= 0) hazards.splice(i, 1);
+        } else if (h.kind === 'pillar' || h.kind === 'lightningStrike') {
+          if (h.timer > 0) {
+            h.timer -= dt;
+            if (h.timer <= 0) {
+              if (h.kind === 'lightningStrike') {
+                sfx.lightning(); triggerShake(9, 0, 0.5);
+                addLightning(h.x, 0, GROUND_Y);
+                addSparks(h.x, GROUND_Y - 16, 12, 0, -1, '#38bdf8', 360, 4);
+                flashEnvLight(h.x, GROUND_Y - 90, '#38bdf8', 0.42);
+              } else {
+                sfx.explosion(); triggerShake(10, 0, -0.6);
+                addDecal('scorch', h.x, 34);
+                addSparks(h.x, GROUND_Y - 24, 14, 0, -1, '#facc15', 380, 4);
+                flashEnvLight(h.x, GROUND_Y - 50, '#f97316', 0.38);
+              }
+            }
+          } else {
+            h.activeTimer -= dt;
+            const hitH = h.kind === 'lightningStrike' ? 300 : 115;
+            if (!h.hit && Math.abs(player.x - h.x) < 34 && player.y > GROUND_Y - hitH) {
+              h.hit = true;
+              damagePlayer(h.dmg, player.x >= h.x ? 1 : -1, null);
+            }
+            if (h.activeTimer <= 0) hazards.splice(i, 1);
+          }
+        } else if (h.kind === 'nova') {
+          h.life -= dt;
+          const p = 1 - h.life / h.maxLife;
+          h.r = 16 + (h.maxR - 16) * p;
+          if (!h.hit && Math.hypot(player.x - h.x, (player.y - 32) - h.y) < h.r) {
+            h.hit = true;
+            damagePlayer(h.dmg, player.x >= h.x ? 1 : -1, null);
+          }
+          if (h.life <= 0) hazards.splice(i, 1);
+        } else if (h.kind === 'beam') {
+          h.life -= dt;
+          const inDir = h.dir === 1 ? (player.x >= h.x) : (player.x <= h.x);
+          if (!h.hit && inDir && Math.abs((player.y - 32) - h.y) < 32) {
+            h.hit = true;
+            damagePlayer(h.dmg, h.dir, null);
+          }
+          if (h.life <= 0) hazards.splice(i, 1);
+        } else if (h.kind === 'frost') {
+          h.life -= dt;
+          if (Math.abs(player.x - h.x) < h.r && player.y > GROUND_Y - 22) {
+            player.slowTimer = 0.28;
+            h.tick -= dt;
+            if (h.tick <= 0) {
+              h.tick = 0.85;
+              damagePlayer(h.dmg, player.x >= h.x ? 1 : -1, null);
+            }
+          }
+          if (h.life <= 0) hazards.splice(i, 1);
+        }
+      }
+    }
+
     function updateProjectiles(dt) {
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const pr = projectiles[i];
+        if (pr.life !== undefined) { pr.life -= dt; if (pr.life <= 0) { projectiles.splice(i, 1); continue; } }
+        if (pr.homing && !pr.friendly) {
+          const dx = player.x - pr.x, dy = (player.y - 34) - pr.y;
+          const d = Math.hypot(dx, dy) || 1;
+          pr.vx += (dx / d) * 320 * dt;
+          pr.vy = (pr.vy || 0) + (dy / d) * 320 * dt;
+          const spd = Math.hypot(pr.vx, pr.vy);
+          if (spd > 280) { pr.vx = (pr.vx / spd) * 280; pr.vy = (pr.vy / spd) * 280; }
+        }
+        if (pr.gravity) pr.vy = (pr.vy || 0) + GRAVITY * dt;
         pr.x += pr.vx * dt;
+        pr.y += (pr.vy || 0) * dt;
         pr.rot += dt * 22;
-        if (pr.x < WALL_L - 20 || pr.x > WALL_R + 20) { projectiles.splice(i, 1); continue; }
+
+        // Mortar bomb hits ground -> AoE Explosion!
+        if (pr.kind === 'bomb' && pr.y >= GROUND_Y) {
+          sfx.explosion(); triggerShake(11, 0, 0.5);
+          addRing(pr.x, GROUND_Y - 8, 86, '#f97316', 5);
+          addDecal('scorch', pr.x, 34);
+          addSparks(pr.x, GROUND_Y - 12, 14, 0, -1, '#facc15', 340, 4);
+          if (Math.abs(player.x - pr.x) < 76 && player.y > GROUND_Y - 68) {
+            damagePlayer(pr.dmg, player.x >= pr.x ? 1 : -1, null);
+          }
+          projectiles.splice(i, 1);
+          continue;
+        }
+
+        if (pr.x < WALL_L - 24 || pr.x > WALL_R + 24 || pr.y > GROUND_Y + 20) { projectiles.splice(i, 1); continue; }
 
         if (!pr.friendly) {
-          if (Math.abs(pr.x - player.x) < 26 && Math.abs(pr.y - (player.y - 34)) < 34) {
+          if (Math.abs(pr.x - player.x) < 28 && Math.abs(pr.y - (player.y - 34)) < 36) {
             const res = damagePlayer(pr.dmg, pr.vx > 0 ? 1 : -1, null);
             if (res === 'parried') {
               pr.friendly = true;
-              pr.vx = -pr.vx * 1.65;
+              pr.homing = false;
+              pr.gravity = false;
+              if (pr.owner && pr.owner.state !== 'dead') {
+                const dx = pr.owner.x - pr.x, dy = (pr.owner.y - pr.owner.h * 0.5) - pr.y;
+                const d = Math.hypot(dx, dy) || 1;
+                pr.vx = (dx / d) * 620; pr.vy = (dy / d) * 620;
+              } else {
+                pr.vx = -pr.vx * 1.65; pr.vy = 0;
+              }
               addFloatText(pr.x, pr.y - 32, '完美反弹!!', '#facc15', 1.2);
             } else if (res === 'hit') {
               projectiles.splice(i, 1);
@@ -1624,9 +2269,11 @@
           }
         } else {
           for (const e of enemies) {
-            if (e.state !== 'dead' && Math.abs(pr.x - e.x) < e.w * 0.6 + 12 && Math.abs(pr.y - (e.y - e.h * 0.5)) < 40) {
-              handleAttackHit(e, { dmg: 38, posture: 35, hitstop: 0.08, kbX: 380, kbY: -220, shake: 12, color: '#38bdf8', power: 2.0, guardBreak: true, exGain: 15 }, true, pr.vx > 0 ? 1 : -1);
-              e.state = 'stunned'; e.stateTimer = 1.6;
+            if (e.state !== 'dead' && Math.abs(pr.x - e.x) < e.w * 0.6 + 16 && Math.abs(pr.y - (e.y - e.h * 0.5)) < 46) {
+              const isOrb = pr.kind === 'orb';
+              handleAttackHit(e, { dmg: isOrb ? 56 : 38, posture: isOrb ? 65 : 35, hitstop: 0.09, kbX: 380, kbY: isOrb ? 220 : -220, shake: 14, color: '#38bdf8', power: 2.2, guardBreak: true, exGain: 8 }, true, pr.vx > 0 ? 1 : -1);
+              e.state = 'stunned'; e.stateTimer = isOrb ? 2.8 : 1.6;
+              if (isOrb && e.isHover) addFloatText(e.x, e.y - 94, '雷球击落!! 速攻!', '#facc15', 1.25);
               projectiles.splice(i, 1);
               break;
             }
@@ -1681,13 +2328,13 @@
         if (Math.abs(pk.x - player.x) < 34 && Math.abs(pk.y - player.y) < 48) {
           sfx.pickup();
           if (pk.kind === 'heal') {
-            player.hp = Math.min(player.maxHp, player.hp + 30);
-            restoreStamina(40, true);
-            addFloatText(player.x, player.y - 76, '+30 HP +SP', '#22c55e', 1.15);
+            player.hp = Math.min(player.maxHp, player.hp + 22);
+            restoreStamina(35, true);
+            addFloatText(player.x, player.y - 76, '+22 HP +SP', '#22c55e', 1.15);
           } else {
-            gainEx(45);
-            restoreStamina(40, true);
-            addFloatText(player.x, player.y - 76, '+EX +SP!', '#facc15', 1.15);
+            gainEx(25);
+            restoreStamina(35, true);
+            addFloatText(player.x, player.y - 76, '+25 EX +SP!', '#facc15', 1.15);
           }
           addRing(pk.x, pk.y - 12, 42, pk.kind === 'heal' ? '#22c55e' : '#facc15', 3);
           pickups.splice(i, 1);
@@ -1716,64 +2363,406 @@
 
     // ==================== Rendering ====================
     function drawStage(pal, biome) {
-      const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-      grad.addColorStop(0, pal.skyTop); grad.addColorStop(1, pal.skyBot);
-      ctx.fillStyle = grad; ctx.fillRect(0, 0, W, GROUND_Y);
+      const px = (player.x - W / 2) / (W / 2); // -1..1 parallax factor
+      const t = envTime;
+      const l = isLightTheme;
 
-      // Biome backdrop landmarks
-      if (biome === 0) { // Neon Alley signs
-        ctx.fillStyle = pal.pillar;
-        for (let x = 60; x < W; x += 145) ctx.fillRect(x, 30, 34, GROUND_Y - 30);
-        ctx.strokeStyle = pal.accentGlow; ctx.globalAlpha = 0.3; ctx.lineWidth = 2;
-        ctx.strokeRect(170, 52, 92, 30); ctx.strokeRect(650, 44, 110, 32);
+      // 1. Rich Multi-Stop Sky Gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+      if (biome === 0) {
+        grad.addColorStop(0, l ? '#dbeafe' : '#050814');
+        grad.addColorStop(0.55, l ? '#cbd5e1' : '#0f1833');
+        grad.addColorStop(1, l ? '#94a3b8' : '#1b2847');
+      } else if (biome === 1) {
+        grad.addColorStop(0, l ? '#fee2e2' : '#110608');
+        grad.addColorStop(0.6, l ? '#fecaca' : '#2a0d12');
+        grad.addColorStop(1, l ? '#fca5a5' : '#4c1614');
+      } else {
+        grad.addColorStop(0, l ? '#fef3c7' : '#1a0c26');
+        grad.addColorStop(0.5, l ? '#fed7aa' : '#581c36');
+        grad.addColorStop(1, l ? '#fdba74' : '#9a3412');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, GROUND_Y);
+
+      // 2. Far & Mid Parallax Biome Architecture
+      if (biome === 0) {
+        // --- BIOME 0: NEON RAIN ALLEY ---
+        // Horizon cyan/magenta urban glow
+        const hGlow = ctx.createRadialGradient(W * 0.5 - px * 14, GROUND_Y, 20, W * 0.5 - px * 14, GROUND_Y, 440);
+        hGlow.addColorStop(0, l ? 'rgba(56,189,248,0.18)' : 'rgba(56,189,248,0.22)');
+        hGlow.addColorStop(0.5, l ? 'rgba(244,114,182,0.08)' : 'rgba(236,72,153,0.12)');
+        hGlow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = hGlow;
+        ctx.fillRect(0, 0, W, GROUND_Y);
+
+        // Far Skyline (0.1x parallax)
+        ctx.save();
+        ctx.translate(-px * 11, 0);
+        for (const b of SKYLINE) {
+          ctx.fillStyle = l ? 'rgba(71,85,105,0.28)' : '#0a1022';
+          ctx.fillRect(b.x, GROUND_Y - b.h, b.w, b.h);
+          // Lit windows grid
+          ctx.fillStyle = b.win;
+          ctx.globalAlpha = l ? 0.22 : 0.34;
+          for (let wy = GROUND_Y - b.h + 12; wy < GROUND_Y - 18; wy += 16) {
+            for (let wx = b.x + 10; wx < b.x + b.w - 12; wx += 14) {
+              if (((wx * 7 + wy * 13) % 11) > 4) ctx.fillRect(wx, wy, 6, 8);
+            }
+          }
+          // Rooftop aviation beacon
+          ctx.globalAlpha = 0.45 + Math.sin(t * 3 + b.x) * 0.4;
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath(); ctx.arc(b.x + b.w * 0.5, GROUND_Y - b.h - 3, 2.2, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+
+        // Mid Alley Overpass, Columns, Volumetric Streetlamps & Neon Signs (0.26x parallax)
+        ctx.save();
+        ctx.translate(-px * 25, 0);
+        // Elevated highway beam
+        ctx.fillStyle = l ? 'rgba(51,65,85,0.2)' : '#121a30';
+        ctx.fillRect(-40, 26, W + 80, 18);
+        for (let x = 70; x < W; x += 190) {
+          ctx.fillRect(x, 44, 24, GROUND_Y - 44);
+          // Streetlamp volumetric light cone
+          const cone = ctx.createLinearGradient(x + 12, 54, x + 12, GROUND_Y);
+          cone.addColorStop(0, l ? 'rgba(56,189,248,0.16)' : 'rgba(56,189,248,0.22)');
+          cone.addColorStop(1, 'rgba(56,189,248,0)');
+          ctx.fillStyle = cone;
+          ctx.beginPath();
+          ctx.moveTo(x + 4, 54); ctx.lineTo(x + 20, 54);
+          ctx.lineTo(x + 76, GROUND_Y); ctx.lineTo(x - 52, GROUND_Y);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#e0f2fe';
+          ctx.fillRect(x + 5, 50, 14, 4);
+        }
+
+        // Glowing Neon Signs
+        const signs = [
+          { x: 145, y: 84, w: 96, h: 36, text: '铁拳馆', col: '#38bdf8', flick: 1 },
+          { x: 430, y: 66, w: 112, h: 34, text: '武道 24H', col: '#f472b6', flick: (Math.sin(t * 27) > -0.82 ? 1 : 0.35) },
+          { x: 705, y: 90, w: 84, h: 34, text: '深夜拉面', col: '#fbbf24', flick: 0.88 + Math.sin(t * 4) * 0.12 },
+        ];
+        for (const s of signs) {
+          ctx.save();
+          ctx.globalAlpha = s.flick;
+          // Soft bloom behind sign
+          const sg = ctx.createRadialGradient(s.x + s.w / 2, s.y + s.h / 2, 4, s.x + s.w / 2, s.y + s.h / 2, 74);
+          sg.addColorStop(0, s.col + '44'); sg.addColorStop(1, s.col + '00');
+          ctx.fillStyle = sg; ctx.fillRect(s.x - 45, s.y - 45, s.w + 90, s.h + 90);
+          ctx.fillStyle = l ? 'rgba(15,23,42,0.78)' : 'rgba(6,10,22,0.88)';
+          ctx.strokeStyle = s.col; ctx.lineWidth = 2.2;
+          ctx.beginPath(); ctx.roundRect(s.x, s.y, s.w, s.h, 5); ctx.fill(); ctx.stroke();
+          ctx.font = '800 15px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = s.col;
+          ctx.fillText(s.text, s.x + s.w / 2, s.y + 23);
+          ctx.restore();
+        }
+        ctx.restore();
+
+      } else if (biome === 1) {
+        // --- BIOME 1: MOLTEN STEEL CAGE (BOSS ARENA) ---
+        // Magma furnace under-glow
+        const mGlow = ctx.createLinearGradient(0, GROUND_Y - 140, 0, GROUND_Y);
+        mGlow.addColorStop(0, 'rgba(239,68,68,0)');
+        mGlow.addColorStop(1, l ? 'rgba(220,38,38,0.22)' : 'rgba(249,115,22,0.34)');
+        ctx.fillStyle = mGlow; ctx.fillRect(0, GROUND_Y - 140, W, 140);
+
+        // Far Molten Lava Waterfalls (0.1x parallax)
+        ctx.save();
+        ctx.translate(-px * 10, 0);
+        [210, 680].forEach((lx, idx) => {
+          const pulse = 0.78 + Math.sin(t * 4.5 + idx * 2) * 0.22;
+          ctx.fillStyle = l ? 'rgba(127,29,29,0.2)' : '#1c0c0e';
+          ctx.beginPath(); ctx.roundRect(lx - 34, 34, 68, GROUND_Y - 34, [34, 34, 0, 0]); ctx.fill();
+          const lg = ctx.createLinearGradient(lx, 54, lx, GROUND_Y);
+          lg.addColorStop(0, '#facc15'); lg.addColorStop(0.5, '#f97316'); lg.addColorStop(1, '#dc2626');
+          ctx.fillStyle = lg; ctx.globalAlpha = (l ? 0.5 : 0.72) * pulse;
+          ctx.fillRect(lx - 14, 54, 28, GROUND_Y - 54);
+          // Flowing bright lava streaks
+          ctx.fillStyle = '#fef08a';
+          for (let k = 0; k < 4; k++) {
+            const sy = 56 + ((t * 110 + k * 62 + idx * 30) % (GROUND_Y - 62));
+            ctx.fillRect(lx - 5 + (k % 2) * 5, sy, 4, 22);
+          }
+          ctx.globalAlpha = 1;
+        });
+        ctx.restore();
+
+        // Mid Steel Cage Diamond Wire Mesh + Swaying Iron Chains + Sweeping Spotlights
+        ctx.save();
+        ctx.translate(-px * 24, 0);
+        // Diamond cage mesh
+        ctx.strokeStyle = l ? 'rgba(127,29,29,0.14)' : 'rgba(248,113,113,0.13)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        for (let x = -GROUND_Y; x < W + GROUND_Y; x += 28) {
+          ctx.moveTo(x, 30); ctx.lineTo(x + GROUND_Y - 30, GROUND_Y);
+          ctx.moveTo(x + GROUND_Y - 30, 30); ctx.lineTo(x, GROUND_Y);
+        }
+        ctx.stroke();
+
+        // Heavy Steel Girders
+        ctx.fillStyle = l ? 'rgba(87,83,78,0.45)' : '#1c1917';
+        ctx.fillRect(-40, 0, W + 80, 26);
+        for (let x = 90; x < W; x += 185) ctx.fillRect(x, 26, 16, GROUND_Y - 26);
+
+        // Swaying Hanging Chains
+        [165, 360, 560, 760].forEach((cx, i) => {
+          const sway = Math.sin(t * 2.1 + i * 1.4) * 9;
+          const len = 85 + (i % 2) * 34;
+          ctx.strokeStyle = l ? 'rgba(68,64,60,0.45)' : '#57534e';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([7, 4]);
+          ctx.beginPath(); ctx.moveTo(cx, 24); ctx.quadraticCurveTo(cx + sway * 0.5, 24 + len * 0.5, cx + sway, 24 + len); ctx.stroke();
+          ctx.setLineDash([]);
+        });
+
+        // Twin Sweeping Volumetric Spotlights
+        [240, 680].forEach((sx, idx) => {
+          const sweep = Math.sin(t * 1.3 + idx * 3.1) * 140;
+          const beam = ctx.createLinearGradient(sx, 20, sx + sweep, GROUND_Y);
+          beam.addColorStop(0, l ? 'rgba(251,146,60,0.18)' : 'rgba(254,240,138,0.16)');
+          beam.addColorStop(1, 'rgba(254,240,138,0)');
+          ctx.fillStyle = beam;
+          ctx.beginPath();
+          ctx.moveTo(sx - 10, 20); ctx.lineTo(sx + 10, 20);
+          ctx.lineTo(sx + sweep + 85, GROUND_Y); ctx.lineTo(sx + sweep - 85, GROUND_Y);
+          ctx.closePath(); ctx.fill();
+        });
+        ctx.restore();
+
+      } else {
+        // --- BIOME 2: SUNSET ANCIENT DOJO ---
+        // Far Giant Setting Sun + Drifting Clouds + Ink Mountains (0.09x parallax)
+        ctx.save();
+        ctx.translate(-px * 9, 0);
+        const sunX = W * 0.5, sunY = GROUND_Y - 68;
+        const sunHalo = ctx.createRadialGradient(sunX, sunY, 30, sunX, sunY, 175);
+        sunHalo.addColorStop(0, l ? 'rgba(249,115,22,0.42)' : 'rgba(251,146,60,0.52)');
+        sunHalo.addColorStop(0.55, l ? 'rgba(251,146,60,0.14)' : 'rgba(239,68,68,0.18)');
+        sunHalo.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = sunHalo; ctx.fillRect(0, 0, W, GROUND_Y);
+        ctx.fillStyle = l ? '#fb923c' : '#fdba74';
+        ctx.globalAlpha = l ? 0.55 : 0.78;
+        ctx.beginPath(); ctx.arc(sunX, sunY, 72, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = 1;
-      } else if (biome === 1) { // Steel Cage spotlights
-        ctx.fillStyle = pal.pillar;
-        for (let x = 50; x < W; x += 90) ctx.fillRect(x, 0, 12, GROUND_Y);
-        ctx.strokeStyle = pal.pillar; ctx.lineWidth = 2;
-        for (let y = 40; y < GROUND_Y; y += 52) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-      } else { // Sunset Sun disc & Torii pillars
-        ctx.fillStyle = isLightTheme ? 'rgba(234,88,12,0.16)' : 'rgba(251,146,60,0.18)';
-        ctx.beginPath(); ctx.arc(W * 0.5, GROUND_Y - 52, 92, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = pal.pillar;
-        ctx.fillRect(140, 20, 26, GROUND_Y - 20); ctx.fillRect(W - 166, 20, 26, GROUND_Y - 20);
+
+        // Drifting sunset clouds
+        ctx.fillStyle = l ? 'rgba(255,255,255,0.45)' : 'rgba(253,186,116,0.16)';
+        for (let c = 0; c < 4; c++) {
+          const cx = ((c * 270 + t * (10 + c * 3)) % (W + 220)) - 110;
+          const cy = 54 + c * 28;
+          ctx.beginPath(); ctx.roundRect(cx, cy, 130 + c * 22, 10, 5); ctx.fill();
+        }
+
+        // Layered Mountain Silhouettes
+        ctx.fillStyle = l ? 'rgba(154,52,18,0.18)' : '#2b1322';
+        ctx.beginPath(); ctx.moveTo(-40, GROUND_Y);
+        ctx.lineTo(130, 155); ctx.lineTo(290, 215); ctx.lineTo(470, 145); ctx.lineTo(660, 205); ctx.lineTo(830, 150); ctx.lineTo(W + 40, GROUND_Y);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        // Mid Dojo Roof Eaves, Shoji Paper Doors, Calligraphy Plaque & Swaying Lanterns (0.24x parallax)
+        ctx.save();
+        ctx.translate(-px * 23, 0);
+        // Back Shoji Screen Wall
+        ctx.fillStyle = l ? 'rgba(255,247,237,0.68)' : 'rgba(254,215,170,0.12)';
+        ctx.fillRect(105, 86, W - 210, GROUND_Y - 86);
+        ctx.strokeStyle = l ? 'rgba(120,53,15,0.28)' : 'rgba(251,146,60,0.22)';
+        ctx.lineWidth = 1.5;
+        for (let sx = 105; sx <= W - 105; sx += 44) { ctx.beginPath(); ctx.moveTo(sx, 86); ctx.lineTo(sx, GROUND_Y); ctx.stroke(); }
+        for (let sy = 112; sy < GROUND_Y; sy += 34) { ctx.beginPath(); ctx.moveTo(105, sy); ctx.lineTo(W - 105, sy); ctx.stroke(); }
+
+        // Crimson Wooden Pillars & Curved Eave Beam
+        ctx.fillStyle = l ? '#9a3412' : '#451218';
+        ctx.fillRect(96, 62, 18, GROUND_Y - 62);
+        ctx.fillRect(W - 114, 62, 18, GROUND_Y - 62);
+        ctx.beginPath();
+        ctx.moveTo(54, 68); ctx.quadraticCurveTo(W / 2, 52, W - 54, 68);
+        ctx.lineTo(W - 68, 86); ctx.lineTo(68, 86); ctx.closePath();
+        ctx.fill();
+
+        // Dojo Wooden Plaque ("武魂")
+        ctx.fillStyle = l ? '#78350f' : '#29120e';
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(W / 2 - 44, 70, 88, 34, 4); ctx.fill(); ctx.stroke();
+        ctx.font = '900 18px serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fde68a';
+        ctx.fillText('武 魂', W / 2, 93);
+
+        // Swaying Glowing Red Paper Lanterns
+        [155, 315, W - 315, W - 155].forEach((lx, idx) => {
+          const swing = Math.sin(t * 2.2 + idx * 1.3) * 5;
+          const ly = 110;
+          const lg = ctx.createRadialGradient(lx + swing, ly, 4, lx + swing, ly, 44);
+          lg.addColorStop(0, 'rgba(251,146,60,0.42)'); lg.addColorStop(1, 'rgba(251,146,60,0)');
+          ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(lx + swing, ly, 44, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(lx, 84); ctx.lineTo(lx + swing, ly - 13); ctx.stroke();
+          ctx.fillStyle = '#dc2626';
+          ctx.beginPath(); ctx.ellipse(lx + swing, ly, 9.5, 13, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fde68a'; ctx.globalAlpha = 0.7;
+          ctx.beginPath(); ctx.ellipse(lx + swing, ly, 4, 8, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+        ctx.restore();
       }
 
-      // Ambient weather particles
+      // 3. Ambient Weather Particles (Back layer)
       ctx.save();
       for (const a of ambientParticles) {
         if (biome === 0) {
-          ctx.strokeStyle = isLightTheme ? 'rgba(51,65,85,0.22)' : 'rgba(148,163,184,0.24)';
-          ctx.lineWidth = 1.2;
-          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x - 5, a.y + 14); ctx.stroke();
+          ctx.strokeStyle = l ? 'rgba(51,65,85,0.28)' : 'rgba(186,230,253,0.28)';
+          ctx.lineWidth = 1.15;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x - 5.5, a.y + 16); ctx.stroke();
         } else if (biome === 1) {
-          ctx.fillStyle = 'rgba(251,146,60,0.55)';
-          ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = Math.sin(a.phase + t * 8) > 0 ? '#facc15' : '#f97316';
+          ctx.globalAlpha = 0.65;
+          ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.72, 0, Math.PI * 2); ctx.fill();
         } else {
-          ctx.fillStyle = isLightTheme ? 'rgba(234,88,12,0.4)' : 'rgba(253,186,116,0.45)';
-          ctx.beginPath(); ctx.ellipse(a.x, a.y, a.size * 1.4, a.size * 0.7, a.phase, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = l ? 'rgba(234,88,12,0.52)' : 'rgba(253,164,175,0.62)';
+          ctx.beginPath(); ctx.ellipse(a.x, a.y, a.size * 1.55, a.size * 0.65 * Math.abs(Math.cos(a.phase)), a.phase, 0, Math.PI * 2); ctx.fill();
         }
       }
       ctx.restore();
 
-      // Floor
+      // 4. Textured Perspective Floor
       const fGrad = ctx.createLinearGradient(0, GROUND_Y, 0, H);
       fGrad.addColorStop(0, pal.floorTop); fGrad.addColorStop(1, pal.floorBot);
       ctx.fillStyle = fGrad; ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
 
+      if (biome === 0) {
+        // Shimmering Neon Reflections on Wet Asphalt!
+        const refs = [
+          { x: 190 - px * 20, w: 120, col: 'rgba(56,189,248,0.18)' },
+          { x: 480 - px * 20, w: 140, col: 'rgba(244,114,182,0.15)' },
+          { x: 745 - px * 20, w: 110, col: 'rgba(251,191,36,0.16)' },
+        ];
+        for (const r of refs) {
+          const rg = ctx.createRadialGradient(r.x, GROUND_Y + 24, 6, r.x, GROUND_Y + 24, r.w * 0.7);
+          rg.addColorStop(0, r.col); rg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = rg;
+          ctx.fillRect(r.x - r.w, GROUND_Y, r.w * 2, H - GROUND_Y);
+        }
+        // Rain splash ripples on wet street
+        ctx.strokeStyle = l ? 'rgba(51,65,85,0.28)' : 'rgba(186,230,253,0.34)';
+        ctx.lineWidth = 1;
+        for (const rs of rainSplashes) {
+          const p = 1 - rs.life / rs.maxLife;
+          ctx.globalAlpha = 1 - p;
+          ctx.beginPath(); ctx.ellipse(rs.x, rs.y, 2 + p * 11, 1 + p * 3.5, 0, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      } else if (biome === 1) {
+        // Glowing lava vents under steel floor grates
+        const pulse = 0.55 + Math.sin(t * 4) * 0.25;
+        ctx.fillStyle = `rgba(239,68,68,${0.18 * pulse})`;
+        for (let x = 95; x < W - 80; x += 170) {
+          ctx.fillRect(x, GROUND_Y + 14, 72, 16);
+        }
+      } else {
+        // Golden sunset floor sheen
+        const sheen = ctx.createRadialGradient(W * 0.5, GROUND_Y + 12, 10, W * 0.5, GROUND_Y + 12, 260);
+        sheen.addColorStop(0, l ? 'rgba(251,146,60,0.22)' : 'rgba(251,146,60,0.24)');
+        sheen.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = sheen; ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+      }
+
+      // Horizon & perspective lines
       ctx.strokeStyle = pal.floorLine; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
-
-      ctx.globalAlpha = 0.32; ctx.lineWidth = 1;
-      for (let x = 60; x < W; x += 92) {
-        ctx.beginPath(); ctx.moveTo(x, GROUND_Y); ctx.lineTo(x + (x - W / 2) * 0.25, H); ctx.stroke();
+      ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+      for (let x = 50; x < W; x += 84) {
+        ctx.beginPath(); ctx.moveTo(x, GROUND_Y); ctx.lineTo(x + (x - W / 2) * 0.28, H); ctx.stroke();
       }
       ctx.globalAlpha = 1;
+
+      // 5. Persistent Battle Decals (Floor Cracks & Scorch Marks)
+      for (const d of decals) {
+        const a = Math.min(1, d.life / 2.5);
+        ctx.save();
+        ctx.globalAlpha = a * 0.85;
+        if (d.kind === 'scorch') {
+          const sg = ctx.createRadialGradient(d.x, GROUND_Y + 6, 3, d.x, GROUND_Y + 6, d.r);
+          sg.addColorStop(0, 'rgba(10,10,12,0.85)');
+          sg.addColorStop(0.6, 'rgba(67,20,7,0.45)');
+          sg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = sg;
+          ctx.beginPath(); ctx.ellipse(d.x, GROUND_Y + 6, d.r, d.r * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.strokeStyle = l ? 'rgba(15,23,42,0.65)' : 'rgba(251,146,60,0.55)';
+          ctx.lineWidth = 1.8;
+          for (let k = 0; k < 6; k++) {
+            const ang = (k / 6) * Math.PI * 2 + d.seed;
+            ctx.beginPath();
+            ctx.moveTo(d.x, GROUND_Y + 4);
+            ctx.lineTo(d.x + Math.cos(ang) * d.r * 0.5, GROUND_Y + 4 + Math.sin(ang) * d.r * 0.16);
+            ctx.lineTo(d.x + Math.cos(ang + 0.18) * d.r, GROUND_Y + 4 + Math.sin(ang + 0.18) * d.r * 0.28);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      // 6. Physical Left/Right Wall-Bounce Boundary Pillars
+      [
+        { x: 0, w: WALL_L - 10, flash: wallHitFlash.left, side: -1 },
+        { x: WALL_R + 10, w: W - (WALL_R + 10), flash: wallHitFlash.right, side: 1 },
+      ].forEach((wl) => {
+        ctx.save();
+        ctx.fillStyle = biome === 1 ? '#292524' : biome === 2 ? '#451218' : '#1e293b';
+        ctx.fillRect(wl.x, 0, wl.w, H);
+        // Hazard / decorative trim stripe along inner edge
+        const edgeX = wl.side === -1 ? wl.w - 4 : wl.x;
+        ctx.fillStyle = wl.flash > 0.05 ? '#facc15' : pal.floorLine;
+        ctx.globalAlpha = wl.flash > 0.05 ? 0.95 : 0.55;
+        ctx.fillRect(edgeX, 0, 4, GROUND_Y);
+        if (wl.flash > 0.05) {
+          const wg = ctx.createRadialGradient(edgeX, GROUND_Y - 50, 4, edgeX, GROUND_Y - 50, 75);
+          wg.addColorStop(0, `rgba(251,146,60,${wl.flash * 0.7})`); wg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = wg; ctx.fillRect(edgeX - 75, 0, 150, GROUND_Y);
+        }
+        ctx.restore();
+      });
 
       // Super Cinematic Darkening
       if (superCinematicAlpha > 0.02) {
         ctx.fillStyle = `rgba(4,6,14,${superCinematicAlpha * 0.72})`;
         ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    function drawForegroundAtmosphere(pal, biome) {
+      // Dynamic Combat Light Flash (Explosion, Lightning, Parry, Super)
+      if (envLight.alpha > 0.01 && feel.vfx) {
+        ctx.save();
+        const lg = ctx.createRadialGradient(envLight.x, envLight.y, 12, envLight.x, envLight.y, 320);
+        lg.addColorStop(0, envLight.color);
+        lg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = envLight.alpha * 0.42;
+        ctx.fillStyle = lg;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
+
+      // Soft Atmospheric Vignette
+      if (!isLightTheme) {
+        ctx.save();
+        const vg = ctx.createRadialGradient(W / 2, H / 2, W * 0.34, W / 2, H / 2, W * 0.62);
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(1, 'rgba(3,6,14,0.38)');
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
+
+      // Cinematic Letterbox Bars during Super Move
+      if (letterboxAmount > 0.02) {
+        const bh = Math.round(28 * letterboxAmount);
+        ctx.fillStyle = '#03050a';
+        ctx.fillRect(0, 0, W, bh);
+        ctx.fillRect(0, H - bh, W, bh);
       }
     }
 
@@ -1892,6 +2881,63 @@
         ctx.beginPath(); ctx.arc(16, -h + 24, pulse, 0, Math.PI * 2); ctx.stroke();
       }
 
+      // Boss / Buffer / Phase 2 Special Visuals
+      if (!isPlayer && !overrideColor) {
+        if (ent.type === 'buffer') {
+          // Golden war-drum halo & aura on floor
+          const pulse = 1 + Math.sin(ent.animTime * 6) * 0.14;
+          ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
+          ctx.beginPath(); ctx.ellipse(0, 0, 32 * pulse, 9 * pulse, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = 1;
+          // War Drum Staff
+          ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(12, -10); ctx.lineTo(14, -h - 8); ctx.stroke();
+          ctx.fillStyle = ent.state === 'windup' ? '#fef08a' : '#f59e0b';
+          ctx.beginPath(); ctx.arc(14, -h - 10, ent.state === 'windup' ? 9 : 6.5, 0, Math.PI * 2); ctx.fill();
+        }
+        if (ent.type === 'boss_ninja') {
+          // Glowing crimson-violet katana blade
+          ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 3.5;
+          ctx.beginPath(); ctx.moveTo(12, -h + 26); ctx.lineTo(44, -h + 6); ctx.stroke();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4; ctx.stroke();
+        }
+        if (ent.type === 'boss_mage') {
+          // Orbiting lightning plasma spheres + levitation ring
+          ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
+          ctx.beginPath(); ctx.ellipse(0, 4, 24, 6, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = 1;
+          for (let k = 0; k < 3; k++) {
+            const ang = ent.animTime * 4.5 + k * 2.09;
+            const ox = Math.cos(ang) * 28, oy = -h * 0.55 + Math.sin(ang) * 14;
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.arc(ox, oy, 5.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(ox, oy, 2.5, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+        if (ent.type === 'boss_fortress') {
+          // Shoulder cannon & glowing overheat core when shield is down
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(-20, -h + 2, 26, 12);
+          ctx.fillStyle = ent.hasShield ? '#38bdf8' : '#ef4444';
+          ctx.beginPath(); ctx.arc(0, -h + 38, ent.hasShield ? 6 : 10, 0, Math.PI * 2); ctx.fill();
+        }
+        if (ent.type === 'boss_twin_fire') {
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath(); ctx.arc(16, -h + 30, 7.5, 0, Math.PI * 2); ctx.fill();
+        }
+        if (ent.type === 'boss_twin_ice') {
+          ctx.strokeStyle = '#67e8f9'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(-18, -h + 20); ctx.lineTo(-26, -h + 6); ctx.lineTo(-12, -h + 12); ctx.closePath(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(18, -h + 16); ctx.lineTo(28, -h + 4); ctx.lineTo(14, -h + 24); ctx.closePath(); ctx.stroke();
+        }
+        if (ent.isBoss && ent.phase >= 2) {
+          ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.65;
+          ctx.beginPath(); ctx.ellipse(0, -h * 0.45, 28 + Math.sin(ent.animTime * 16) * 4, h * 0.56, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
       // Enemy Shield
       if (!isPlayer && !overrideColor && ent.hasShield) {
         ctx.fillStyle = pal.shieldFill; ctx.strokeStyle = pal.shieldStroke; ctx.lineWidth = 2.5;
@@ -1908,12 +2954,12 @@
         ctx.stroke(); ctx.restore();
       }
 
-      // Non-boss HP bar
+      // Non-boss HP bar & Buff tag
       if (!isPlayer && !overrideColor && ent.state !== 'dead' && !ent.isBoss) {
         const bw = 42, bh = 5, bx = ent.x - bw / 2, by = ent.y - ent.h - 15;
         if (ent.type !== 'dummy') {
           ctx.fillStyle = pal.hpBg; ctx.fillRect(bx, by, bw, bh);
-          ctx.fillStyle = ent.state === 'stunned' ? '#facc15' : '#ef4444';
+          ctx.fillStyle = ent.state === 'stunned' ? '#facc15' : (ent.type === 'buffer' ? '#f59e0b' : '#ef4444');
           ctx.fillRect(bx, by, bw * (ent.hp / ent.maxHp), bh);
         } else {
           ctx.font = '600 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = pal.hudSub;
@@ -1922,6 +2968,12 @@
         if (ent.state === 'stunned') {
           ctx.font = '700 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#facc15';
           ctx.fillText('破防眩晕!', ent.x, by - 5);
+        } else if (ent.type === 'buffer') {
+          ctx.font = '800 10.5px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#facc15';
+          ctx.fillText('★ 战巫(优先杀)', ent.x, by - 5);
+        } else if (ent.buffTimer > 0) {
+          ctx.font = '800 10.5px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ef4444';
+          ctx.fillText('▲ 狂暴', ent.x, by - 5);
         }
       }
     }
@@ -1958,14 +3010,28 @@
         ctx.restore();
       }
 
-      // Projectiles (Shuriken)
+      // Projectiles (Shuriken, Plasma Orbs, Ice Spears, Mortar Bombs)
       for (const pr of projectiles) {
         ctx.save();
-        ctx.translate(pr.x, pr.y); ctx.rotate(pr.rot);
-        ctx.fillStyle = pr.friendly ? '#38bdf8' : '#e879f9';
-        for (let k = 0; k < 4; k++) {
-          ctx.rotate(Math.PI / 2);
-          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(13, -3); ctx.lineTo(4, 3); ctx.closePath(); ctx.fill();
+        ctx.translate(pr.x, pr.y);
+        if (pr.kind === 'orb') {
+          const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 16);
+          g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, pr.friendly ? '#facc15' : '#38bdf8'); g.addColorStop(1, 'rgba(56,189,248,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+        } else if (pr.kind === 'bomb') {
+          ctx.fillStyle = '#dc2626'; ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(0, 0, 8.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        } else if (pr.kind === 'ice') {
+          ctx.fillStyle = pr.friendly ? '#facc15' : '#67e8f9';
+          const d = pr.vx >= 0 ? 1 : -1;
+          ctx.beginPath(); ctx.moveTo(16 * d, 0); ctx.lineTo(-10 * d, -5); ctx.lineTo(-10 * d, 5); ctx.closePath(); ctx.fill();
+        } else {
+          ctx.rotate(pr.rot);
+          ctx.fillStyle = pr.friendly ? '#38bdf8' : '#e879f9';
+          for (let k = 0; k < 4; k++) {
+            ctx.rotate(Math.PI / 2);
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(13, -3); ctx.lineTo(4, 3); ctx.closePath(); ctx.fill();
+          }
         }
         ctx.restore();
       }
@@ -1977,6 +3043,63 @@
         ctx.beginPath();
         ctx.moveTo(s.x - 16, GROUND_Y); ctx.lineTo(s.x, GROUND_Y - 26); ctx.lineTo(s.x + 16, GROUND_Y);
         ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+
+      // Boss Hazards (Magma Pillars, Sky Lightning, Iai Line, Repulse Nova, Pulse Beam, Frost Zone)
+      for (const h of hazards) {
+        ctx.save();
+        if (h.kind === 'slashLine') {
+          const pulse = 0.55 + Math.sin(envTime * 45) * 0.4;
+          ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 3.5; ctx.globalAlpha = pulse;
+          ctx.setLineDash([12, 8]);
+          ctx.beginPath(); ctx.moveTo(WALL_L, h.y); ctx.lineTo(WALL_R, h.y); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(WALL_L, h.y); ctx.lineTo(WALL_R, h.y); ctx.stroke();
+        } else if (h.kind === 'pillar' || h.kind === 'lightningStrike') {
+          const isLt = h.kind === 'lightningStrike';
+          if (h.timer > 0) {
+            const p = 1 - h.timer / h.maxTimer;
+            ctx.strokeStyle = isLt ? '#38bdf8' : '#ef4444'; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.ellipse(h.x, GROUND_Y + 2, 32, 9, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = isLt ? `rgba(56,189,248,${0.18 + p * 0.45})` : `rgba(239,68,68,${0.18 + p * 0.45})`;
+            ctx.beginPath(); ctx.ellipse(h.x, GROUND_Y + 2, 32 * p, 9 * p, 0, 0, Math.PI * 2); ctx.fill();
+          } else {
+            const a = h.activeTimer / (isLt ? 0.24 : 0.26);
+            ctx.globalAlpha = a;
+            if (isLt) {
+              ctx.fillStyle = '#38bdf8'; ctx.fillRect(h.x - 16 * a, 0, 32 * a, GROUND_Y);
+              ctx.fillStyle = '#ffffff'; ctx.fillRect(h.x - 6 * a, 0, 12 * a, GROUND_Y);
+            } else {
+              const g = ctx.createLinearGradient(h.x, GROUND_Y - 125, h.x, GROUND_Y);
+              g.addColorStop(0, '#fef08a'); g.addColorStop(0.5, '#f97316'); g.addColorStop(1, '#dc2626');
+              ctx.fillStyle = g;
+              ctx.beginPath(); ctx.roundRect(h.x - 24 * a, GROUND_Y - 125, 48 * a, 128, 12); ctx.fill();
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath(); ctx.roundRect(h.x - 9 * a, GROUND_Y - 115, 18 * a, 115, 6); ctx.fill();
+            }
+          }
+        } else if (h.kind === 'nova') {
+          const a = h.life / h.maxLife;
+          ctx.globalAlpha = a;
+          ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 8 * a;
+          ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2); ctx.stroke();
+        } else if (h.kind === 'beam') {
+          const a = h.life / h.maxLife;
+          const x1 = h.x, x2 = h.dir === 1 ? WALL_R : WALL_L;
+          ctx.globalAlpha = a;
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(Math.min(x1, x2), h.y - 16 * a, Math.abs(x2 - x1), 32 * a);
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(Math.min(x1, x2), h.y - 6 * a, Math.abs(x2 - x1), 12 * a);
+        } else if (h.kind === 'frost') {
+          const a = Math.min(1, h.life / 1.2);
+          ctx.globalAlpha = a * 0.55;
+          ctx.fillStyle = '#22d3ee';
+          ctx.beginPath(); ctx.ellipse(h.x, GROUND_Y + 4, h.r, 14, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#cffafe'; ctx.lineWidth = 2; ctx.stroke();
+        }
         ctx.restore();
       }
     }
@@ -2014,17 +3137,31 @@
         ctx.fillText('按 U 放必杀!', 190, 47);
       }
 
-      // Boss Bar (Top Center)
-      const boss = enemies.find(e => e.isBoss && e.state !== 'dead');
-      if (boss) {
+      // Boss Bar(s) — Automatically supports Single Boss or Side-by-Side Twin Bosses!
+      const bosses = enemies.filter(e => e.isBoss && e.state !== 'dead');
+      if (bosses.length === 1) {
+        const boss = bosses[0];
         const bw = 340, bx = (W - bw) / 2;
-        ctx.textAlign = 'center'; ctx.font = '800 12px sans-serif'; ctx.fillStyle = '#ef4444';
-        ctx.fillText(boss.label, W / 2, 20);
+        ctx.textAlign = 'center'; ctx.font = '800 12px sans-serif';
+        ctx.fillStyle = boss.phase >= 2 ? '#facc15' : '#ef4444';
+        ctx.fillText(boss.phase >= 2 ? `${boss.label}  [二阶段觉醒]` : boss.label, W / 2, 20);
         ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(bx, 25, bw, 11, 5); ctx.fill();
         ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.roundRect(bx, 25, bw * (boss.hp / boss.maxHp), 11, 5); ctx.fill();
-        // Posture bar
         ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(bx + 30, 39, bw - 60, 5, 3); ctx.fill();
         ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.roundRect(bx + 30, 39, (bw - 60) * (boss.posture / boss.maxPosture), 5, 3); ctx.fill();
+      } else if (bosses.length >= 2) {
+        bosses.slice(0, 2).forEach((boss, idx) => {
+          const bw = 200, gap = 16;
+          const bx = W / 2 - bw - gap / 2 + idx * (bw + gap);
+          ctx.textAlign = 'center'; ctx.font = '800 11px sans-serif';
+          ctx.fillStyle = boss.type === 'boss_twin_fire' ? '#fb923c' : '#22d3ee';
+          ctx.fillText(boss.label, bx + bw / 2, 19);
+          ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(bx, 24, bw, 10, 4); ctx.fill();
+          ctx.fillStyle = boss.type === 'boss_twin_fire' ? '#f97316' : '#06b6d4';
+          ctx.beginPath(); ctx.roundRect(bx, 24, bw * (boss.hp / boss.maxHp), 10, 4); ctx.fill();
+          ctx.fillStyle = pal.hpBg; ctx.beginPath(); ctx.roundRect(bx + 14, 37, bw - 28, 4, 2); ctx.fill();
+          ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.roundRect(bx + 14, 37, (bw - 28) * (boss.posture / boss.maxPosture), 4, 2); ctx.fill();
+        });
       }
 
       // Charge Gauge over player
@@ -2260,6 +3397,7 @@
       }
 
       ctx.restore();
+      drawForegroundAtmosphere(pal, biome);
       drawHUDInCanvas(pal);
       ctx.restore();
     }
@@ -2375,8 +3513,24 @@
       btnMode.textContent = mode === 'waves' ? '木桩训练' : '闯关模式';
       resetGame(false); startAndFocus();
     });
-    btnBoss.addEventListener('click', () => { resetGame(true); startAndFocus(); });
-    btnReset.addEventListener('click', () => { resetGame(false); startAndFocus(); });
+    btnBiome.addEventListener('click', () => {
+      const cur = getBiome(wave);
+      forcedBiome = (cur + 1) % 3;
+      hudWave.textContent = mode === 'dummy'
+        ? `木桩训练 · ${BIOME_NAMES[forcedBiome]}`
+        : `WAVE ${wave} · ${BIOME_NAMES[forcedBiome]}`;
+      showBanner(`场景切换 · ${BIOME_NAMES[forcedBiome]}`, '支持 2.5D 视差景深与地面战痕交互');
+      startAndFocus();
+    });
+    bossSelect.addEventListener('change', () => {
+      const val = Number(bossSelect.value);
+      if (!val) return;
+      forcedBiome = -1;
+      resetGame(val);
+      bossSelect.value = '';
+      startAndFocus();
+    });
+    btnReset.addEventListener('click', () => { forcedBiome = -1; resetGame(0); startAndFocus(); });
 
     document.querySelectorAll('.toggle-pill').forEach((btn) => {
       btn.addEventListener('click', () => {

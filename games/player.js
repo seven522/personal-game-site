@@ -1,5 +1,8 @@
 // Each cartridge runs in its own iframe so changing games releases the previous engine.
-const sizes = { 'monster-paradise': 42810320, beastmaster: 43572228 };
+const packs = {
+  'monster-paradise': {size:58664996, revision:'469ebaf6'},
+  beastmaster: {size:43572228, revision:'da7e0430'}
+};
 const id = new URLSearchParams(location.search).get('game');
 const canvas = document.getElementById('game-canvas');
 const loader = document.getElementById('loader');
@@ -15,19 +18,20 @@ function reportError(text) {
   retry.hidden = false;
 }
 async function boot() {
-  if (!Object.hasOwn(sizes, id)) throw new Error('卡带无法识别。');
+  if (!Object.hasOwn(packs, id)) throw new Error('卡带无法识别。');
   if (Engine.getMissingFeatures({threads:false}).length || typeof DecompressionStream === 'undefined') {
     throw new Error('试玩需要支持 WebGL 2 的浏览器，请开启图形加速后重试。');
   }
   const pack = id + '.pck';
-  const lengths = { 'engine.wasm':37700666, [pack]:sizes[id] };
+  const lengths = { 'engine.wasm':37700666, [pack]:packs[id].size };
   // The site is static. Stream the packaged assets even on servers without gzip headers.
   const fetchFile = window.fetch.bind(window);
   window.fetch = async function(input, init) {
     const url = new URL(input instanceof Request ? input.url : input, location.href);
     const name = url.pathname.split('/').pop();
     if (url.href !== new URL(name, location.href).href || !Object.hasOwn(lengths,name)) return fetchFile(input, init);
-    const response = await fetchFile(name + '.gz', init);
+    const asset = name + '.gz' + (name === pack ? '?v=' + packs[id].revision : '');
+    const response = await fetchFile(asset, init);
     if (!response.ok) throw new Error('卡带读取失败，请重试。');
     const bytes = new Uint8Array(await response.arrayBuffer());
     const stream = new Blob([bytes]).stream();
