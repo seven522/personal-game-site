@@ -170,10 +170,23 @@ function rest(back = false) {
   byId('flip-cart').textContent = back ? '正面' : '翻面';
   snapIfReduced(); start();
 }
+for (const selector of ['.rack', '.cart-stage', '.deck']) {
+  const host = document.querySelector(selector);
+  if (!host) continue;
+  for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
+    host.addEventListener(type, event => event.preventDefault(), true);
+  }
+}
+for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+  touch.addEventListener(type, event => {
+    if (event.cancelable) event.preventDefault();
+  }, { passive: false });
+}
+let lastCartTapAt = 0;
 touch.addEventListener('pointerdown', e => {
   if (e.button !== 0 || dragging) return;
   touch.setPointerCapture(e.pointerId);
-  dragging = {id:e.pointerId, x:e.clientX, y:e.clientY, initial:cart.quaternion.clone(), moved:false};
+  dragging = {id:e.pointerId, x:e.clientX, y:e.clientY, initial:cart.quaternion.clone(), moved:false, pointerType:e.pointerType};
   looseUntil = 0; target.copy(cart.quaternion);
   hand.position.z = quietMotion.matches ? 0 : .095;
   snapIfReduced(); start();
@@ -190,7 +203,14 @@ touch.addEventListener('pointermove', e => {
 function drop(e) {
   if (!dragging || (e.pointerId !== undefined && dragging.id !== e.pointerId)) return;
   const moved = dragging.moved;
-  dragging = null; suppressTap = moved;
+  const isTouch = dragging.pointerType === 'touch';
+  dragging = null; suppressTap = moved || isTouch;
+  if (isTouch && !moved && e.type === 'pointerup') {
+    const now = performance.now();
+    if (now - lastCartTapAt < 340) { lastCartTapAt = 0; rest(false); }
+    else { lastCartTapAt = now; rest(!flipped); }
+    return;
+  }
   rest(flipped);
   if (moved && e.type === 'pointerup' && !quietMotion.matches) looseUntil = performance.now() + 380;
 }

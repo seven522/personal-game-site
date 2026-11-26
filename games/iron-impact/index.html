@@ -2,14 +2,20 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>铁拳破阵 2.4 · IRON IMPACT</title>
   <!-- Source: seven522/iron-impact @ 423eacf253a334081bf3f99ebae97d017d926b09. station=1 embeds the game in the cartridge cabinet. -->
   <script>
     if (new URLSearchParams(location.search).get('station') === '1') {
       document.documentElement.classList.add('in-station');
-      for (const type of ['selectstart', 'contextmenu', 'dragstart']) {
+      for (const type of ['selectstart', 'contextmenu', 'dragstart', 'dblclick']) {
         document.addEventListener(type, e => e.preventDefault(), true);
+      }
+      for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+        document.addEventListener(type, e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+      }
+      for (const type of ['touchstart', 'touchmove', 'touchend']) {
+        document.addEventListener(type, e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
       }
     }
   </script>
@@ -103,8 +109,8 @@
     .toggle-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted-foreground); opacity: 0.45; }
     .toggle-pill[data-on="true"] .toggle-dot { background: var(--primary); opacity: 1; }
     .build-text { margin-left: auto; color: var(--muted-foreground); font-family: ui-monospace, monospace; }
-    .in-station, .in-station body {height:100%;min-height:0;overflow:hidden}
-    .in-station * {-webkit-touch-callout:none}
+    .in-station, .in-station body {height:100%;min-height:0;overflow:hidden;overscroll-behavior:none;touch-action:none}
+    .in-station * {-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
     .in-station body {padding:0;background:#090d16}
     .in-station .shell {width:min(100vw,262.85vh);max-width:none;display:block}
     .in-station .shell > :not(.stage), .in-station #focus-hint {display:none}

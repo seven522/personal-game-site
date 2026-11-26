@@ -1,17 +1,29 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>卡带试玩</title>
 <style>
-  *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-  *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#10130f;color:#f8f5e5;font:600 14px/1.4 system-ui,sans-serif}
+  *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;overscroll-behavior:none;touch-action:none;background:#10130f;color:#f8f5e5;font:600 14px/1.4 system-ui,sans-serif}
   body{display:grid;place-items:center}canvas{display:block;width:min(100vw,177.778vh);height:min(100vh,56.25vw);outline:none;touch-action:none}
   #loader{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;background:#20251c;text-align:center;padding:12px}
-  #loader[hidden],button[hidden]{display:none}p{margin:0}progress{height:5px;width:min(160px,60vw);accent-color:#cef027}button{border:0;padding:8px 18px;background:#d6f22e;border-radius:4px;font:inherit}
+  #loader[hidden],button[hidden]{display:none}p{margin:0}progress{height:5px;width:min(160px,60vw);accent-color:#cef027}button{border:0;padding:8px 18px;background:#d6f22e;border-radius:4px;font:inherit;touch-action:manipulation}
 </style>
 <script>
-  // Native selection events in this frame do not bubble to the surrounding station.
-  for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
+  // Native selection, double-tap zoom, pinch zoom and iOS magnifier events in this frame do not bubble to the station.
+  for (const type of ['contextmenu', 'selectstart', 'dragstart', 'dblclick']) {
     document.addEventListener(type, event => event.preventDefault(), true);
+  }
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(type, event => {
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
+  }
+  for (const type of ['touchstart', 'touchmove', 'touchend']) {
+    document.addEventListener(type, event => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('button')) return;
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
   }
 </script>
 <script defer src="engine.js"></script><script defer src="player.js?v=1c6b179"></script>

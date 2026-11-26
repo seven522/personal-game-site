@@ -109,7 +109,8 @@ html[data-theme="iron"] {
   --cap-top:#ffd296;--cap-bottom:#e77935;
 }
 [data-controller="arcade"] .pad-hit > span {display:block}
-[data-controller="arcade"] .pad-hit:active {transform:translateY(2px);box-shadow:inset 0 2px 4px #0004,0 1px 0 1px #131921}
+[data-controller="arcade"] .pad-hit:active,
+[data-controller="arcade"] .pad-hit.is-pressed {transform:translateY(2px);box-shadow:inset 0 2px 4px #0004,0 1px 0 1px #131921}
 [data-controller="arcade"] .pad-dpad-zone .pad-hit {border-radius:10px;color:#d6edef;--cap-top:#657784;--cap-bottom:#344654}
 [data-controller="arcade"] .hit-start {
   grid-area:1/2;width:clamp(48px,7vw,80px);height:44px;border-radius:16px;font:800 12px/1 var(--mono);
@@ -124,12 +125,13 @@ html[data-theme="iron"] {
 [data-controller="arcade"] .fight-actions .pad-hit::before {content:attr(data-key);font:750 9px/1 var(--mono);color:#443428}
 [data-controller="arcade"] .hit-b::after {content:"长按蓄力";font:650 9px/1.3 sans-serif;pointer-events:none}
 [data-controller="arcade"] .dock-stage .pad-hit[hidden] {display:none}
-@media(max-width:760px), (pointer:coarse) and (max-width:1024px) {
-  [data-controller="arcade"] .dock-stage {--key-size:clamp(44px,10vw,56px)}
+@media(max-width:760px), (pointer:coarse) and (max-width:1024px), (pointer:coarse) and (max-height:560px) {
+  [data-controller="arcade"] .dock-stage {--key-size:clamp(44px,10vw,56px);padding:8px 6px 10px}
   [data-controller="arcade"] .pad-controls {padding:12px 6px 14px;gap:4px}
   [data-controller="arcade"] .fight-actions {gap:7px 3px}
   [data-controller="arcade"] .pad-dpad-zone {gap:2px}
-  [data-controller="arcade"] #screen-size {background:#354455;color:#f4e7d4;border-color:#7d8993;box-shadow:inset 0 1px #697683}
+  [data-controller="arcade"] #screen-size,
+  [data-controller="arcade"] #screen-rotate {background:#354455;color:#f4e7d4;border-color:#7d8993;box-shadow:inset 0 1px #697683}
 }
 @media(max-width:360px) {
   [data-controller="arcade"] .pad-controls {grid-template-columns:auto 1fr auto;row-gap:7px}
@@ -137,14 +139,33 @@ html[data-theme="iron"] {
   [data-controller="arcade"] .pad-dpad-zone {grid-area:2/1}
   [data-controller="arcade"] .fight-actions {grid-area:1/3/3/4}
 }
-.play-expanded [data-controller="arcade"] .dock-stage {padding:0;gap:10px;background:none;border:0;box-shadow:none;filter:none}
+.play-expanded [data-controller="arcade"] .dock-stage {padding:0;gap:12px;background:none;border:0;box-shadow:none;filter:none}
 .play-expanded [data-controller="arcade"] .fight-marquee {display:none}
-.play-expanded [data-controller="arcade"] .screen-viewport {border-width:2px}
-.play-expanded [data-controller="arcade"] .pad-controls {width:min(100%,640px);margin:0}
+.play-expanded [data-controller="arcade"] .screen-viewport {border-width:2px 0;border-radius:0}
+.play-expanded [data-controller="arcade"] .pad-controls {width:min(calc(100% - 12px),640px);margin:2px 0 0}
 [data-theme="iron"] .play-expanded main {background:radial-gradient(ellipse at center,#2c4051,#0c141e 75%)}
+.play-expanded.play-rotated [data-controller="arcade"] .dock-stage {--key-size:44px;grid-template-columns:92px minmax(0,1fr) 140px;align-items:center}
+.play-expanded.play-rotated [data-controller="arcade"] .screen-viewport {
+  grid-area:1/2;border-width:2px;border-radius:8px;
+  max-height:calc(var(--play-vh) - 48px);
+  width:min(100%,calc((var(--play-vh) - 48px) * 920 / 350));
+  justify-self:center;
+}
+.play-expanded.play-rotated [data-controller="arcade"] .pad-controls,
+.play-expanded.play-rotated [data-controller="arcade"] .pad-actions {display:contents}
+.play-expanded.play-rotated [data-controller="arcade"] .pad-controls::before,
+.play-expanded.play-rotated [data-controller="arcade"] .pad-controls::after {display:none}
+.play-expanded.play-rotated [data-controller="arcade"] .pad-dpad-zone {grid-area:1/1;align-self:end}
+.play-expanded.play-rotated [data-controller="arcade"] .hit-start {grid-area:1/1;align-self:start}
+.play-expanded.play-rotated [data-controller="arcade"] .fight-actions {grid-area:1/3}
 @media(orientation:landscape) and (max-height:560px) {
   .play-expanded [data-controller="arcade"] .dock-stage {--key-size:44px;grid-template-columns:92px minmax(0,1fr) 140px;align-items:center}
-  .play-expanded [data-controller="arcade"] .screen-viewport {grid-area:1/2}
+  .play-expanded [data-controller="arcade"] .screen-viewport {
+    grid-area:1/2;border-width:2px;border-radius:8px;
+    max-height:calc(var(--play-vh) - 48px);
+    width:min(100%,calc((var(--play-vh) - 48px) * 920 / 350));
+    justify-self:center;
+  }
   .play-expanded [data-controller="arcade"] .pad-controls, .play-expanded [data-controller="arcade"] .pad-actions {display:contents}
   .play-expanded [data-controller="arcade"] .pad-controls::before,.play-expanded [data-controller="arcade"] .pad-controls::after {display:none}
   .play-expanded [data-controller="arcade"] .pad-dpad-zone {grid-area:1/1;align-self:end}

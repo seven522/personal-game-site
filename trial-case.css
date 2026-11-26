@@ -119,12 +119,15 @@
   transition: box-shadow .12s ease, background .12s ease, transform .08s ease;
 }
 
-.pad-hit:hover {
-  background: rgba(255, 255, 255, .12);
-  box-shadow: 0 0 0 2px rgba(204, 240, 0, .6), 0 0 14px rgba(204, 240, 0, .35);
+@media (hover: hover) and (pointer: fine) {
+  .pad-hit:hover {
+    background: rgba(255, 255, 255, .12);
+    box-shadow: 0 0 0 2px rgba(204, 240, 0, .6), 0 0 14px rgba(204, 240, 0, .35);
+  }
 }
 
-.pad-hit:active {
+.pad-hit:active,
+.pad-hit.is-pressed {
   background: rgba(0, 0, 0, .28);
   box-shadow: inset 0 3px 8px rgba(0, 0, 0, .75);
   transform: scale(.94);
@@ -200,12 +203,17 @@
 .standby-copy {position:absolute;z-index:1;left:6%;right:5%;bottom:11%;display:grid;justify-items:start;gap:6px}
 .standby-copy strong {font:950 clamp(18px,4.2cqw,40px)/1.05 "Microsoft YaHei",sans-serif;letter-spacing:.02em;text-shadow:1px 2px #192211}
 .standby-copy small {font:750 clamp(11px,1.55cqw,15px)/1.5 var(--mono);color:#e6fc7a}
-.game-frame {background:#121511}
-.pad-controls {display:contents}
-.trial-section, .trial-section * {
+.game-frame {background:#121511;touch-action:none}
+.screen-viewport {touch-action:none}
+.pad-controls {display:contents;touch-action:none}
+.pad-dpad-zone, .pad-actions, .fight-actions {touch-action:none}
+.dock-rail-actions {display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.trial-section, .trial-section *,
+.play-expanded main, .play-expanded main * {
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
+  -webkit-tap-highlight-color:transparent;
 }
 .pad-hit {touch-action:none;translate:0 var(--key-y,0%);scale:var(--key-scale,1)}
 .pad-hit > span {display:none;pointer-events:none}
@@ -213,7 +221,7 @@
 [data-mode=slot-2] .rack-title {left:54%;top:38%;width:32%;transform:rotate(3deg)}
 .rack-key:disabled {cursor:default}
 .rack-key:disabled .keycap {filter:saturate(.45) brightness(.83)}
-.rack-key[data-mode=game][aria-pressed=false] .keycap img {filter:grayscale(.92)}
+.rack-key[data-mode=game][aria-pressed=false] .keycap img {filter:grayscale(.95) brightness(.74) contrast(.94)}
 .rack-key[data-mode=slot-2][aria-pressed=true] .keycap img {filter:sepia(.9) saturate(2) hue-rotate(15deg) brightness(1.1)}
 /* Follow the printed ink area; both labels share the actual paper rim and registration marks. */
 .trial-sticker {
@@ -241,13 +249,14 @@
 .launch-cap img {width:14px;height:14px}
 .launch-key:active .launch-cap {translate:0 1px}
 .pad-actions {display:contents}
-#expanded-title,#screen-size {display:none}
-@media(max-width:760px), (pointer:coarse) and (max-width:1024px) {
+#expanded-title,#screen-size,#screen-rotate {display:none}
+@media(max-width:760px), (pointer:coarse) and (max-width:1024px), (pointer:coarse) and (max-height:560px) {
   .dock-layout {padding:0}
+  .dock-rail-actions {flex-direction:row;align-items:center;gap:6px;margin-left:auto}
   .dock-stage {display:grid;grid-template-columns:minmax(0,1fr);aspect-ratio:auto;isolation:isolate;overflow:clip;filter:drop-shadow(0 5px 5px #40332238)}
-  .dock-chassis {width:120%;max-width:none;height:51.6cqw;object-fit:cover;object-position:top;grid-area:1/1;align-self:start;margin-left:-10%;clip-path:inset(0 8.33%)}
-  .screen-viewport {left:9.98%;top:6.72cqw;width:79.8%;height:40.68cqw}
-  .pad-controls {position:relative;grid-area:1/1;align-self:start;display:grid;grid-template-columns:repeat(3,var(--switch)) minmax(56px,1fr) repeat(2,var(--switch));align-items:center;justify-content:center;gap:4px;--switch:clamp(44px,9vw,54px);margin:51.6cqw 2% 5px;padding:10px clamp(6px,2vw,16px) 14px;border:2px solid #706858;border-radius:16px 16px 24px 24px;background:linear-gradient(165deg,#faf3e2,#c9c1ae 75%,#e0d7c6);box-shadow:inset 0 2px 1px #fff9e9,inset 0 -4px 2px #998f7b,0 3px 0 #5d5446}
+  .dock-chassis {width:134%;max-width:none;height:57.62cqw;object-fit:cover;object-position:top;grid-area:1/1;align-self:start;margin-left:-17%;clip-path:inset(0 12.69%)}
+  .screen-viewport {left:5.31%;top:7.51cqw;width:89.11%;height:45.42cqw}
+  .pad-controls {position:relative;grid-area:1/1;align-self:start;display:grid;grid-template-columns:repeat(3,var(--switch)) minmax(56px,1fr) repeat(2,var(--switch));align-items:center;justify-content:center;gap:4px;--switch:clamp(44px,9.5vw,54px);margin:57.62cqw 0 5px;padding:10px clamp(6px,2vw,16px) 14px;border:2px solid #706858;border-radius:16px 16px 24px 24px;background:linear-gradient(165deg,#faf3e2,#c9c1ae 75%,#e0d7c6);box-shadow:inset 0 2px 1px #fff9e9,inset 0 -4px 2px #998f7b,0 3px 0 #5d5446;touch-action:none}
   .pad-dpad-zone {grid-column:1/4;display:grid;grid-template:repeat(3,var(--switch))/repeat(3,var(--switch));gap:2px;position:static;width:auto;height:auto}
   .pad-hit,.pad-dpad-zone .pad-hit {position:static;inset:auto;display:grid;place-items:center;min-width:44px;min-height:44px;width:var(--switch);height:var(--switch);margin:0;border:1px solid #362f24;border-radius:7px;background:linear-gradient(#5b584d,#34342e);color:#f7efd4;box-shadow:inset 0 2px 1px #ffffff4a,inset 0 -3px 1px #0005,0 2px 0 #51493a;font:850 14px/1 var(--mono)}
   .pad-hit > span {display:block}
@@ -256,16 +265,21 @@
   .pad-controls .hit-a,.pad-controls .hit-b {border-radius:50%;font-size:17px}
   .pad-controls .hit-a {grid-column:6;grid-row:1;background:linear-gradient(#ffab69,#ec601e);color:#29160d;align-self:start;margin-top:18px}
   .pad-controls .hit-b {grid-column:5;grid-row:1;background:linear-gradient(#e3ddd0,#aaa18d);color:#242118;align-self:end;margin-bottom:18px}
-  .pad-controls .pad-hit:active {box-shadow:inset 0 2px 4px #30271788;transform:translateY(2px)}
+  .pad-controls .pad-hit:active,
+  .pad-controls .pad-hit.is-pressed {box-shadow:inset 0 2px 4px #30271788;transform:translateY(2px)}
   .tv-power::after {background:linear-gradient(0deg,#121910f5,transparent)}
   .dock-rail {flex-wrap:wrap;gap:8px}
-  #screen-size {
-    display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:0 7px;
+  #screen-size,
+  #screen-rotate {
+    align-items:center;justify-content:center;gap:5px;min-height:40px;padding:0 10px;
     font:800 13px/1.15 "Microsoft YaHei",sans-serif;
     color:#3e3a2f;border:1px solid #afa58f;border-radius:5px;
     background:linear-gradient(#faf4e7,#dfd5c2);box-shadow:inset 0 1px #fffaf1,inset 0 -2px #c1b59d;
+    touch-action:manipulation;white-space:nowrap;
   }
-  #screen-size:active {transform:translateY(1px)}
+  #screen-size {display:inline-flex}
+  #screen-size:active,#screen-rotate:active {transform:translateY(1px)}
+  .rotate-mark {font-size:15px;line-height:1}
   .size-mark {
     display:block;width:12px;height:12px;background:
       linear-gradient(currentColor,currentColor) left top / 6px 2px,
@@ -279,6 +293,7 @@
   .shelf {grid-template-columns:clamp(126px,34%,160px) minmax(0,1fr)}
   .cart-stage {min-height:64cqw}
   .cart-body {width:90%}
+  .trial-section {width:100vw;margin-left:calc(50% - 50vw);padding-inline:8px}
 }
 @media(max-width:360px) {
   .pad-controls {gap:2px;margin-inline:0;padding-inline:4px}
@@ -287,38 +302,90 @@
 @media(prefers-reduced-motion:reduce){.pad-hit{transition:none}}
 
 /* Resize the live screen and its controller in place to preserve the game session. */
-.play-expanded {overflow:hidden}
+.play-expanded {overflow:hidden;overscroll-behavior:none}
 .play-expanded .top,.play-expanded .shelf,.play-expanded footer,.play-expanded .skip,
 .play-expanded .dock-title,.play-expanded .dock-lime-bar,
 .play-expanded .dock-chassis {display:none}
 .play-expanded main {
   position:fixed;inset:0;z-index:12;width:100%;max-width:none;height:100%;height:100dvh;
-  margin:0;overflow:auto;background:radial-gradient(ellipse at 50% 40%,#393b31,#20231e 70%);
+  margin:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:none;touch-action:manipulation;
+  background:radial-gradient(ellipse at 50% 40%,#393b31,#20231e 70%);
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
-.play-expanded .trial-section {width:100%;height:100%;margin:0;padding:0;border:0}
+.play-expanded .trial-section {width:100%;height:100%;margin:0;padding:0;border:0;--play-vh:100dvh}
 .play-expanded .dock-layout {
-  min-height:100%;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:4px;
+  min-height:100%;display:flex;flex-direction:column;justify-content:flex-start;gap:12px;padding:max(10px,3dvh) 0 14px;
 }
 .play-expanded .dock-rail {
-  width:100%;max-width:960px;align-self:center;flex-flow:row nowrap;justify-content:space-between;align-items:center;padding:0 4px;
+  width:100%;max-width:960px;align-self:center;flex-flow:row nowrap;justify-content:space-between;align-items:center;padding:0 8px;gap:6px;
 }
-.play-expanded #expanded-title {display:inline-flex;align-items:center;gap:8px;color:#f2eedc;font-size:17px}
-.play-expanded #expanded-title::before {content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 5px #cbea5c77}
-.play-expanded .dock-stage {display:grid;grid-template-columns:minmax(0,1fr);gap:8px;overflow:visible;filter:none}
+.play-expanded .dock-rail-actions {flex:none;gap:5px}
+.play-expanded #expanded-title {display:inline-flex;align-items:center;gap:6px;min-width:0;color:#f2eedc;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.play-expanded #expanded-title::before {content:"";width:7px;height:7px;flex:none;border-radius:50%;background:var(--lime);box-shadow:0 0 5px #cbea5c77}
+.play-expanded #screen-rotate {display:inline-flex}
+@media(max-width:440px) {
+  .play-expanded #screen-size,
+  .play-expanded #screen-rotate {min-height:36px;padding:0 7px;font-size:12px;gap:4px}
+  .play-expanded #boss-challenge {width:5.9em;min-height:36px;padding:2px 4px;font-size:12px}
+}
+.play-expanded .dock-stage {width:100%;max-width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;overflow:visible;filter:none;align-content:start}
 .play-expanded .screen-viewport {
   position:relative;inset:auto;width:100%;height:auto;aspect-ratio:16/9;grid-area:auto;
-  border-radius:6px;box-shadow:0 0 0 2px #10110f,0 2px 1px 2px #58594b;
+  border-radius:0;box-shadow:0 -1px 0 #58594b,0 2px 0 #10110f;
 }
 .play-expanded .screen-viewport::after {display:none}
-.play-expanded .pad-controls {grid-area:auto;width:min(100%,640px);justify-self:center;margin:0}
+.play-expanded .pad-controls {
+  grid-area:auto;width:min(calc(100% - 12px),640px);justify-self:center;margin:2px 0 0;
+  --switch:clamp(44px,11.5vw,56px);
+}
+/* Manual 90deg rotated landscape mode for portrait-locked phones (e.g. iPhone Safari). */
+.play-expanded.play-rotated main {padding:0;overflow:hidden}
+.play-expanded.play-rotated .trial-section {
+  position:fixed;top:50%;left:50%;width:100dvh;height:100vw;
+  transform:translate(-50%,-50%) rotate(90deg);
+  padding:env(safe-area-inset-left) env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom);
+  --play-vh:100vw;
+}
+.play-expanded.play-rotated .dock-layout {height:100%;min-height:0;justify-content:center;gap:4px;padding:4px 8px}
+.play-expanded.play-rotated .dock-rail {max-width:none;padding:0 2px}
+.play-expanded.play-rotated #screen-size,
+.play-expanded.play-rotated #screen-rotate {min-height:34px;padding:0 8px;font-size:12px}
+.play-expanded.play-rotated #boss-challenge {min-height:34px;font-size:12px;padding:2px 4px}
+.play-expanded.play-rotated .dock-stage {
+  --switch:44px;flex:1;min-height:0;
+  grid-template-columns:calc(3 * var(--switch) + 4px) minmax(0,1fr) 96px;
+  align-items:center;align-content:center;gap:8px;
+}
+.play-expanded.play-rotated .screen-viewport {
+  grid-area:1/2;border-radius:6px;box-shadow:0 0 0 2px #10110f,0 2px 1px 2px #58594b;
+  max-height:calc(var(--play-vh) - 48px);
+  width:min(100%,calc((var(--play-vh) - 48px) * 16 / 9));
+  justify-self:center;
+}
+.play-expanded.play-rotated .pad-controls {display:contents;--switch:44px}
+.play-expanded.play-rotated .pad-dpad-zone {grid-area:1/1}
+.play-expanded.play-rotated .pad-actions {grid-area:1/3;display:grid;grid-template-columns:repeat(2,44px);gap:16px 5px;align-items:center}
+.play-expanded.play-rotated .hit-start {grid-area:1/1/2/3;width:100%;margin:0}
+.play-expanded.play-rotated .hit-a {grid-area:2/2;margin:0}
+.play-expanded.play-rotated .hit-b {grid-area:2/1;margin:8px 0 0}
+
 @media (orientation:landscape) and (max-height:560px) {
+  .play-expanded #screen-rotate {display:none}
+  .play-expanded .dock-layout {height:100%;min-height:0;justify-content:center;gap:4px;padding:4px 6px}
+  .play-expanded .dock-rail {max-width:none;padding:0 2px}
+  .play-expanded #screen-size {min-height:34px;padding:0 8px;font-size:12px}
+  .play-expanded #boss-challenge {min-height:34px;font-size:12px;padding:2px 4px}
   .play-expanded .dock-stage {
-    --switch:44px;
+    --switch:44px;flex:1;min-height:0;
     grid-template-columns:calc(3 * var(--switch) + 4px) minmax(0,1fr) 96px;
-    align-items:center;gap:8px;
+    align-items:center;align-content:center;gap:8px;
   }
-  .play-expanded .screen-viewport {grid-area:1/2;max-height:calc(100dvh - 72px)}
+  .play-expanded .screen-viewport {
+    grid-area:1/2;border-radius:6px;box-shadow:0 0 0 2px #10110f,0 2px 1px 2px #58594b;
+    max-height:calc(var(--play-vh) - 48px);
+    width:min(100%,calc((var(--play-vh) - 48px) * 16 / 9));
+    justify-self:center;
+  }
   .play-expanded .pad-controls {display:contents;--switch:44px}
   .play-expanded .pad-dpad-zone {grid-area:1/1}
   .play-expanded .pad-actions {grid-area:1/3;display:grid;grid-template-columns:repeat(2,44px);gap:16px 5px;align-items:center}

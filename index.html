@@ -2,19 +2,19 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#f5f2e9">
   <meta name="description" content="卡嗒的独立游戏卡带架。选一张卡带，按手柄 START，在电视里试玩。">
   <title>怪兽仙境 · 卡嗒</title>
   <link rel="icon" href="icons/controller.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="hardware.css?v=20261124.5">
+  <link rel="stylesheet" href="style.css?v=20261126.1">
+  <link rel="stylesheet" href="hardware.css?v=20261126.1">
   <link rel="stylesheet" href="gallery.css">
-  <link rel="stylesheet" href="trial-case.css?v=20261125.3">
-  <link rel="stylesheet" href="arcade-theme.css?v=20261125.4">
+  <link rel="stylesheet" href="trial-case.css?v=20261126.1">
+  <link rel="stylesheet" href="arcade-theme.css?v=20261126.1">
   <link rel="preload" as="image" href="hardware/cart/front.webp">
   <link rel="preload" as="image" href="hardware/trial/dock.webp">
-  <script type="module" src="app.js?v=20261125.4"></script>
+  <script type="module" src="app.js?v=20261126.1"></script>
 </head>
 <body>
   <a href="#games" class="skip">跳到作品</a>
@@ -74,8 +74,11 @@
           <h2 class="dock-title" id="trial-heading" aria-label="试玩台"><span>试</span><span>玩</span><span>台</span></h2>
           <div class="dock-lime-bar" aria-hidden="true"></div>
           <strong id="expanded-title"></strong>
-          <select id="boss-challenge" aria-label="直接挑战首领" disabled hidden><option value="">挑战首领</option></select>
-          <button type="button" id="screen-size" aria-controls="trial-viewport" aria-expanded="false"><span class="size-mark" aria-hidden="true"></span><span id="size-label">放大试玩</span></button>
+          <div class="dock-rail-actions">
+            <select id="boss-challenge" aria-label="直接挑战首领" disabled hidden><option value="">挑战首领</option></select>
+            <button type="button" id="screen-rotate" aria-controls="trial-viewport" aria-pressed="false"><span class="rotate-mark" aria-hidden="true">↻</span><span id="rotate-label">横屏放大</span></button>
+            <button type="button" id="screen-size" aria-controls="trial-viewport" aria-expanded="false"><span class="size-mark" aria-hidden="true"></span><span id="size-label">放大试玩</span></button>
+          </div>
         </aside>
 
         <div class="dock-stage">

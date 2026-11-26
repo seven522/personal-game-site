@@ -22,18 +22,52 @@ export function setupTelevision() {
   const station = $('trial');
   const power = $('tv-power');
   const pad = document.querySelector('.pad-controls');
+  const startButton = $('pad-start');
   const sizeKey = $('screen-size');
+  const rotateKey = $('screen-rotate');
   const challenge = $('boss-challenge');
-  const phoneLayout = matchMedia('(max-width:760px), (pointer:coarse) and (max-width:1024px)');
+  const phoneLayout = matchMedia('(max-width:760px), (pointer:coarse) and (max-width:1024px), (pointer:coarse) and (max-height:560px)');
+  const nativeLandscape = matchMedia('(orientation:landscape) and (max-height:560px)');
   let returnScroll = 0;
   const held = new Map();
   const buttons = [...pad.querySelectorAll('.pad-hit:not(.hit-start)')];
+  const buttonByAction = new Map(buttons.map(button => [button.id.slice(4), button]));
   let bindings, keyActions;
   let game, frame, ready = false;
+  let startPointerId = null;
+  let lastPointerStartAt = 0;
 
   for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
     station.addEventListener(type, event => event.preventDefault(), true);
   }
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(type, event => {
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
+  }
+  station.addEventListener('dblclick', event => event.preventDefault(), true);
+
+  // Block iOS Safari's native long-press magnifier loupe and double-tap zoom across the gamepad.
+  // Pointer events continue to fire normally for multi-touch holds and rapid taps.
+  for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+    pad.addEventListener(type, event => {
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
+  }
+  document.addEventListener('touchmove', event => {
+    if (event.touches.length > 1 && event.cancelable) event.preventDefault();
+  }, { passive: false });
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', event => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('button:not(.pad-hit), a, select, input, textarea, label, .inspect')) {
+      lastTouchEnd = 0;
+      return;
+    }
+    const now = performance.now();
+    if (now - lastTouchEnd <= 320 && event.cancelable) event.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
 
   function start(continueRound = false) {
     releaseAll();
@@ -55,10 +89,20 @@ export function setupTelevision() {
       }
     }
   }
+  function setRotated(on) {
+    const next = Boolean(on) && document.body.classList.contains('play-expanded') && !nativeLandscape.matches;
+    document.body.classList.toggle('play-rotated', next);
+    if (rotateKey) {
+      rotateKey.setAttribute('aria-pressed', String(next));
+      const label = $('rotate-label');
+      if (label) label.textContent = next ? '恢复竖屏' : '横屏放大';
+    }
+  }
   function setExpanded(on) {
     if (on === document.body.classList.contains('play-expanded')) return;
     releaseAll();
     if (on) returnScroll = window.scrollY;
+    else setRotated(false);
     document.body.classList.toggle('play-expanded', on);
     sizeKey.setAttribute('aria-expanded', String(on));
     $('size-label').textContent = on ? '收起画面' : '放大试玩';
@@ -69,8 +113,19 @@ export function setupTelevision() {
     }
   }
   sizeKey.onclick = () => setExpanded(sizeKey.getAttribute('aria-expanded') !== 'true');
+  if (rotateKey) {
+    rotateKey.onclick = () => {
+      if (!document.body.classList.contains('play-expanded')) setExpanded(true);
+      setRotated(!document.body.classList.contains('play-rotated'));
+    };
+  }
   phoneLayout.addEventListener('change', () => { if (!phoneLayout.matches) setExpanded(false); });
+  nativeLandscape.addEventListener('change', () => { if (nativeLandscape.matches) setRotated(false); });
   $('online-play').onclick = () => {
+    if (phoneLayout.matches) {
+      setExpanded(true);
+      return;
+    }
     start();
     station.scrollIntoView({block:'start', behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
   };
@@ -139,6 +194,7 @@ export function setupTelevision() {
     }));
   }
   function release(action, immediately = false) {
+    buttonByAction.get(action)?.classList.remove('is-pressed');
     const entry = held.get(action);
     if (!entry) return;
     clearTimeout(entry.timer);
@@ -147,21 +203,29 @@ export function setupTelevision() {
     if (delay) entry.timer = setTimeout(finish, delay);
     else finish();
   }
-  function releaseAll() { for (const action of held.keys()) release(action, true); }
+  function releaseAll() {
+    for (const button of buttons) button.classList.remove('is-pressed');
+    startButton.classList.remove('is-pressed');
+    startPointerId = null;
+    for (const action of held.keys()) release(action, true);
+  }
   function press(action) {
     if (!ready || !bindings[action]) return false;
     release(action, true);
     const code = bindings[action].code;
     held.set(action, {code, at:performance.now(), timer:0});
+    buttonByAction.get(action)?.classList.add('is-pressed');
     sendCode(code, true);
     return true;
   }
   for (const button of buttons) {
     const action = button.id.slice(4);
     button.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || !press(action)) return;
+      if (event.button !== 0) return;
       event.preventDefault();
-      button.setPointerCapture(event.pointerId);
+      button.classList.add('is-pressed');
+      try { button.setPointerCapture(event.pointerId); } catch {}
+      press(action);
     });
     button.addEventListener('pointerup', () => release(action));
     button.addEventListener('lostpointercapture', () => release(action));
@@ -170,6 +234,42 @@ export function setupTelevision() {
       if (event.detail === 0 && press(action)) release(action);
     });
   }
+  function activateStart(continueRound = true) {
+    if (!frame && phoneLayout.matches) {
+      setExpanded(true);
+      return;
+    }
+    start(continueRound);
+  }
+  startButton.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    startPointerId = event.pointerId;
+    startButton.classList.add('is-pressed');
+    try { startButton.setPointerCapture(event.pointerId); } catch {}
+  });
+  startButton.addEventListener('pointerup', event => {
+    if (event.pointerId !== startPointerId) return;
+    startPointerId = null;
+    startButton.classList.remove('is-pressed');
+    const rect = startButton.getBoundingClientRect();
+    const inside = event.clientX >= rect.left && event.clientX <= rect.right &&
+      event.clientY >= rect.top && event.clientY <= rect.bottom;
+    if (inside) {
+      lastPointerStartAt = performance.now();
+      activateStart(true);
+    }
+  });
+  for (const type of ['pointercancel', 'lostpointercapture']) {
+    startButton.addEventListener(type, () => {
+      startPointerId = null;
+      startButton.classList.remove('is-pressed');
+    });
+  }
+  startButton.onclick = () => {
+    if (performance.now() - lastPointerStartAt < 450) return;
+    activateStart(true);
+  };
   // Enter and Space activate the focused button using the browser's normal click.
   pad.addEventListener('keydown', event => {
     if (event.code === 'Enter' || event.code === 'Space') return;
@@ -184,7 +284,9 @@ export function setupTelevision() {
   pad.addEventListener('focusout', event => { if (!pad.contains(event.relatedTarget)) releaseAll(); });
   window.addEventListener('blur', releaseAll);
   document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
-  power.onclick = () => start();
-  $('pad-start').onclick = () => start(true);
+  power.onclick = () => {
+    if (phoneLayout.matches) setExpanded(true);
+    else start();
+  };
   return {select};
 }

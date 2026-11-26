@@ -1,6 +1,6 @@
-import { games, applyTheme } from './catalog.js?v=20261125.4';
+import { games, applyTheme } from './catalog.js?v=20261126.1';
 import { setupViewer } from './viewer.js?v=20261124.4';
-import { setupTelevision } from './trial-case.js?v=20261125.4';
+import { setupTelevision } from './trial-case.js?v=20261126.1';
 
 const $ = id => document.getElementById(id);
 const shelf = document.querySelector('[data-catalog]');
@@ -119,4 +119,4 @@ about.addEventListener('click', event => {
   const box = about.getBoundingClientRect();
   if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) about.close();
 });
-await import('./hardware.js?v=20261125.3');
+await import('./hardware.js?v=20261126.1');
