@@ -7,6 +7,7 @@ if (selected) {
   applyTheme(selected);
   for (const link of document.querySelectorAll('.top a')) {
     const url = new URL(link.href);
+    if (url.origin !== location.origin) continue;
     url.searchParams.set('game', selected.id);
     link.href = url.href;
   }
